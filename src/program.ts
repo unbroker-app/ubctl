@@ -1,5 +1,8 @@
 import { Command } from "commander";
 import { VERSION } from "./version";
+import { loginCommand } from "./commands/login";
+import { logoutCommand } from "./commands/logout";
+import { whoamiCommand } from "./commands/whoami";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -19,6 +22,11 @@ export function buildProgram(): Command {
     .option("--org <id>", "act against a specific organization (X-Org-Id)")
     .option("--api-url <url>", "override the Unbroker API base URL")
     .option("--json", "output raw JSON instead of formatted tables");
+
+  // Auth & identity
+  program.addCommand(loginCommand());
+  program.addCommand(logoutCommand());
+  program.addCommand(whoamiCommand());
 
   return program;
 }

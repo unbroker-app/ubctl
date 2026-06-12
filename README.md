@@ -19,10 +19,18 @@ curl -fsSL https://github.com/unbroker-app/ubctl/releases/latest/download/instal
 ## Quick start
 
 ```bash
-ubctl login                 # authenticate with an Unbroker API token (coming soon)
+ubctl login                 # authenticate with an Unbroker API token
+ubctl whoami                # show the authenticated account and active org
 ubctl apps services ls      # list your services (coming soon)
 ubctl apps deploy <service> # trigger a deployment (coming soon)
 ```
+
+`login` validates the token against the API and stores it (with the API URL and
+your org) under `~/.config/ubctl/config.json`, written `0600`. The token can also
+come from `--token`, piped stdin (`echo $TOKEN | ubctl login --stdin`), or the
+`UBCTL_TOKEN` environment variable. The API base URL defaults to the development
+cloud (`https://dev.api.cloud.unbroker.app`); override it with `--api-url` or
+`UBCTL_API_URL`.
 
 Global flags:
 
