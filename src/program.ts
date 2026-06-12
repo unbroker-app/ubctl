@@ -7,6 +7,7 @@ import { appsCommand } from "./commands/apps";
 import { tokensCommand } from "./commands/tokens";
 import { accountCommand } from "./commands/account";
 import { orgsCommand } from "./commands/orgs";
+import { resellerCommands } from "./commands/reseller";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -39,6 +40,9 @@ export function buildProgram(): Command {
   program.addCommand(tokensCommand());
   program.addCommand(accountCommand());
   program.addCommand(orgsCommand());
+
+  // Cloud resources (DigitalOcean reseller layer)
+  for (const c of resellerCommands()) program.addCommand(c);
 
   return program;
 }
