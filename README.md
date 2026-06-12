@@ -48,6 +48,20 @@ ubctl orgs
 
 `tokens create` prints the secret **once** — store it immediately.
 
+### Cloud resources (DigitalOcean reseller)
+
+```
+ubctl droplets ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
+ubctl db ls | get <id> | connection <id> | rm <id>
+ubctl k8s ls | get <id> | kubeconfig <id> | rm <id>
+ubctl firewalls ls | get <id> | rm <id>
+ubctl lb
+ubctl vpcs
+ubctl spaces
+```
+
+`k8s kubeconfig <id>` prints YAML — redirect it: `ubctl k8s kubeconfig <id> > kubeconfig.yaml`.
+
 `login` validates the token against the API and stores it (with the API URL and
 your org) under `~/.config/ubctl/config.json`, written `0600`. The token can also
 come from `--token`, piped stdin (`echo $TOKEN | ubctl login --stdin`), or the
