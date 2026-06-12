@@ -2,6 +2,8 @@
 
 Official command-line interface for [Unbroker Cloud](https://github.com/unbroker-app). Talk to the Unbroker API from your terminal and CI: deploy apps, manage services and env vars, and drive your cloud resources programmatically.
 
+📖 **Visual walkthrough of the whole flow:** open [`docs/index.html`](docs/index.html) in a browser (self-contained, no build needed).
+
 ## Install
 
 ubctl ships as a scoped npm package on **GitHub Packages** and as standalone
