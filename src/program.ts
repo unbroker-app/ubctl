@@ -3,6 +3,7 @@ import { VERSION } from "./version";
 import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { whoamiCommand } from "./commands/whoami";
+import { appsCommand } from "./commands/apps";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -27,6 +28,9 @@ export function buildProgram(): Command {
   program.addCommand(loginCommand());
   program.addCommand(logoutCommand());
   program.addCommand(whoamiCommand());
+
+  // Products
+  program.addCommand(appsCommand());
 
   return program;
 }

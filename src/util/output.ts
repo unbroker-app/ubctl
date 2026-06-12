@@ -12,7 +12,7 @@ export function print(line = ""): void {
  * Render an array of records as a left-aligned text table. Columns are the
  * given keys; missing/empty values render as "-". Kept dependency-free.
  */
-export function printTable<T extends Record<string, unknown>>(
+export function printTable<T>(
   rows: T[],
   columns: { key: keyof T; header: string }[],
 ): void {
@@ -22,7 +22,7 @@ export function printTable<T extends Record<string, unknown>>(
   }
   const cells = rows.map((row) =>
     columns.map((c) => {
-      const v = row[c.key];
+      const v = (row as Record<string, unknown>)[c.key as string];
       return v === undefined || v === null || v === "" ? "-" : String(v);
     }),
   );

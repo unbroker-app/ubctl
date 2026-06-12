@@ -19,11 +19,24 @@ curl -fsSL https://github.com/unbroker-app/ubctl/releases/latest/download/instal
 ## Quick start
 
 ```bash
-ubctl login                 # authenticate with an Unbroker API token
-ubctl whoami                # show the authenticated account and active org
-ubctl apps services ls      # list your services (coming soon)
-ubctl apps deploy <service> # trigger a deployment (coming soon)
+ubctl login                          # authenticate with an Unbroker API token
+ubctl whoami                         # show the authenticated account and active org
+ubctl apps projects ls               # list your projects
+ubctl apps services ls               # list your services
+ubctl apps deploy <serviceId> --wait # trigger a deployment and follow it to completion
 ```
+
+### Apps commands
+
+```
+ubctl apps projects ls | get <id> | create --name <name> | rename <id> --name <name> | rm <id>
+ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [...] | rm <id> | logs <id> | metrics <id>
+ubctl apps env ls <serviceId> | set <serviceId> <KEY> <VALUE> | rm <serviceId> <KEY>
+ubctl apps domains ls <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
+ubctl apps deploy <serviceId> [--wait] | deployments <serviceId> | deployment <id> [--log] | rollback <serviceId> <deploymentId>
+```
+
+Add `--json` to any read command for machine-readable output.
 
 `login` validates the token against the API and stores it (with the API URL and
 your org) under `~/.config/ubctl/config.json`, written `0600`. The token can also
