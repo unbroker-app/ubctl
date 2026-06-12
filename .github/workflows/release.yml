@@ -1,0 +1,92 @@
+name: Release
+
+# Tag a version to publish it: `git tag v0.2.0 && git push origin v0.2.0`.
+# Publishes the npm package to GitHub Packages and attaches compiled binaries
+# (Linux + macOS, x64 + arm64) to the GitHub Release for the tag.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create the release + upload assets
+  packages: write # publish to GitHub Packages
+
+jobs:
+  npm:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: "@unbroker-app"
+
+      - name: Sync version to the tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$VERSION\";/" src/version.ts
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  binaries:
+    name: Compile binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Sync version to the tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$VERSION\";/" src/version.ts
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cross-compile (Linux + macOS, x64 + arm64)
+        run: |
+          mkdir -p out
+          for target in \
+            "bun-linux-x64:ubctl-linux-x64" \
+            "bun-linux-arm64:ubctl-linux-arm64" \
+            "bun-darwin-x64:ubctl-darwin-x64" \
+            "bun-darwin-arm64:ubctl-darwin-arm64"; do
+            bun_target="${target%%:*}"
+            out_name="${target##*:}"
+            echo "Building $out_name ($bun_target)"
+            bun build --compile --target="$bun_target" src/index.ts --outfile "out/$out_name"
+          done
+          ( cd out && sha256sum ubctl-* > SHA256SUMS )
+          ls -la out
+
+      - name: Attach binaries to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/ubctl-linux-x64
+            out/ubctl-linux-arm64
+            out/ubctl-darwin-x64
+            out/ubctl-darwin-arm64
+            out/SHA256SUMS
+            scripts/install.sh

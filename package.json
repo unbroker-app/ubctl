@@ -1,5 +1,5 @@
 {
-  "name": "ubctl",
+  "name": "@unbroker-app/ubctl",
   "version": "0.1.0",
   "description": "Official Unbroker Cloud CLI",
   "license": "UNLICENSED",
@@ -13,9 +13,17 @@
   "engines": {
     "node": ">=20"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unbroker-app/ubctl.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "bun build src/index.ts --target=node --outfile=dist/index.js --banner=\"#!/usr/bin/env node\"",
+    "prepublishOnly": "bun run build",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "node --import tsx --test $(find src -name '*.test.ts')",

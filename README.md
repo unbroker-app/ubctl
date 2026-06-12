@@ -2,19 +2,31 @@
 
 Official command-line interface for [Unbroker Cloud](https://github.com/unbroker-app). Talk to the Unbroker API from your terminal and CI: deploy apps, manage services and env vars, and drive your cloud resources programmatically.
 
-> **Status:** early scaffold. Authentication and resource commands land in follow-up PRs (see [#169](https://github.com/unbroker-app/unbroker/issues/169)).
-
 ## Install
 
-> Published builds are not available yet. For now, run from source (below).
+ubctl ships as a scoped npm package on **GitHub Packages** and as standalone
+binaries on each GitHub Release. Both live in this **private** repo, so you need
+read access (a `gh` login, or a `GITHUB_TOKEN` that can read `unbroker-app/ubctl`).
+
+### Standalone binary (Linux / macOS, x64 / arm64)
 
 ```bash
-# npm (coming soon)
-npm install -g ubctl
-
-# standalone binary (coming soon)
-curl -fsSL https://github.com/unbroker-app/ubctl/releases/latest/download/install.sh | sh
+# requires the GitHub CLI (gh auth login) or GITHUB_TOKEN
+curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash
 ```
+
+### npm (GitHub Packages)
+
+```bash
+# one-time: point the @unbroker-app scope at GitHub Packages and authenticate
+echo "@unbroker-app:registry=https://npm.pkg.github.com" >> ~/.npmrc
+echo "//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN" >> ~/.npmrc
+
+npm install -g @unbroker-app/ubctl   # installs the `ubctl` binary
+```
+
+Releases are cut by pushing a `vX.Y.Z` tag; CI publishes the package and attaches
+the binaries (see `.github/workflows/release.yml`).
 
 ## Quick start
 
