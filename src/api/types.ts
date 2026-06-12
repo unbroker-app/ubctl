@@ -150,3 +150,74 @@ export interface LogsResponse {
 export interface MetricsResponse {
   metrics: Metrics | null;
 }
+
+/* ----- API tokens ----- */
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  scope: string;
+  prefix: string;
+  lastUsed: string | null;
+}
+
+export interface TokensResponse {
+  tokens: ApiToken[];
+}
+
+/** Creation returns the plaintext secret exactly once. */
+export interface CreateTokenResponse {
+  token: ApiToken;
+  secret: string;
+}
+
+/* ----- Account & organizations ----- */
+
+export interface UsageSummary {
+  monthToDate: number;
+  projected: number;
+  runRate: number;
+  ledger: number;
+  vcpus: number;
+  memoryGb: number;
+  storageGb: number;
+  droplets: number;
+  dropletLimit: number;
+}
+
+export interface Invoice {
+  id: string;
+  period: string;
+  amount: number;
+  status: "Paid" | "Due" | "Pending";
+}
+
+export interface ActivityEvent {
+  id: string;
+  time: string;
+  actor: string;
+  action: string;
+  target: string;
+  kind: "create" | "delete" | "update" | "deploy" | "alert";
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  kind: "personal" | "team";
+  plan: string;
+  color: string;
+}
+
+export interface UsageResponse {
+  usage: UsageSummary;
+}
+export interface InvoicesResponse {
+  invoices: Invoice[];
+}
+export interface ActivityResponse {
+  activity: ActivityEvent[];
+}
+export interface OrganizationsResponse {
+  organizations: Organization[];
+}

@@ -38,6 +38,16 @@ ubctl apps deploy <serviceId> [--wait] | deployments <serviceId> | deployment <i
 
 Add `--json` to any read command for machine-readable output.
 
+### Account commands
+
+```
+ubctl tokens ls | create --name <name> [--scope read|read/write] | rm <id>
+ubctl account usage | invoices | activity
+ubctl orgs
+```
+
+`tokens create` prints the secret **once** — store it immediately.
+
 `login` validates the token against the API and stores it (with the API URL and
 your org) under `~/.config/ubctl/config.json`, written `0600`. The token can also
 come from `--token`, piped stdin (`echo $TOKEN | ubctl login --stdin`), or the

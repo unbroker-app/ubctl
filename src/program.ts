@@ -4,6 +4,9 @@ import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { whoamiCommand } from "./commands/whoami";
 import { appsCommand } from "./commands/apps";
+import { tokensCommand } from "./commands/tokens";
+import { accountCommand } from "./commands/account";
+import { orgsCommand } from "./commands/orgs";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -31,6 +34,11 @@ export function buildProgram(): Command {
 
   // Products
   program.addCommand(appsCommand());
+
+  // Account management
+  program.addCommand(tokensCommand());
+  program.addCommand(accountCommand());
+  program.addCommand(orgsCommand());
 
   return program;
 }
