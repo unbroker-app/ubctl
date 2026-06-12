@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ubctl — flujo del CLI de Unbroker Cloud</title>
+    <style>
+      :root {
+        --bg: #0a0b0d;
+        --surface: #14161a;
+        --surface-2: #1c1f25;
+        --border: #2a2e36;
+        --text: #e7e9ee;
+        --muted: #9aa1ad;
+        --subtle: #6b7280;
+        --primary: #aafb00;
+        --primary-dim: #7fbd06;
+        --radius: 12px;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* ---- header ---- */
+      header.hero {
+        border-bottom: 1px solid var(--border);
+        background: radial-gradient(
+            1200px 400px at 50% -120px,
+            rgba(170, 251, 0, 0.12),
+            transparent 70%
+          ),
+          var(--bg);
+        padding: 72px 0 56px;
+      }
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        font-size: 15px;
+        color: var(--muted);
+        margin-bottom: 28px;
+      }
+      .logo .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        background: var(--primary);
+        display: inline-block;
+      }
+      h1 {
+        font-size: clamp(34px, 6vw, 54px);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        margin: 0 0 16px;
+      }
+      h1 .accent {
+        color: var(--primary);
+      }
+      .lede {
+        font-size: 19px;
+        color: var(--muted);
+        max-width: 640px;
+        margin: 0 0 28px;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--primary);
+        background: rgba(170, 251, 0, 0.08);
+        border: 1px solid rgba(170, 251, 0, 0.25);
+        border-radius: 999px;
+        padding: 5px 14px;
+      }
+
+      /* ---- nav ---- */
+      nav.toc {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(10, 11, 13, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      nav.toc .wrap {
+        display: flex;
+        gap: 22px;
+        overflow-x: auto;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        font-size: 14px;
+      }
+      nav.toc a {
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      nav.toc a:hover {
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      /* ---- sections ---- */
+      section {
+        padding: 56px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      section h2 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--primary-dim);
+        margin: 0 0 8px;
+      }
+      section h3.title {
+        font-size: 28px;
+        letter-spacing: -0.02em;
+        margin: 0 0 14px;
+      }
+      section p {
+        color: var(--muted);
+        max-width: 680px;
+      }
+      h4 {
+        margin: 30px 0 10px;
+        font-size: 17px;
+      }
+
+      /* ---- code blocks ---- */
+      pre {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 1.7;
+        color: #d4d8e0;
+        margin: 14px 0;
+      }
+      pre .c {
+        color: var(--subtle);
+      }
+      pre .p {
+        color: var(--primary);
+      }
+      pre .o {
+        color: #6fb3ff;
+      }
+      pre .s {
+        color: #f0b072;
+      }
+      code.inline {
+        font-family: var(--mono);
+        font-size: 0.88em;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        color: var(--text);
+      }
+
+      /* ---- tables ---- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--subtle);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      td code {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--primary);
+      }
+
+      /* ---- pipeline diagram ---- */
+      .pipeline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 22px 0 8px;
+      }
+      .stage {
+        font-family: var(--mono);
+        font-size: 13px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--muted);
+      }
+      .stage.live {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(170, 251, 0, 0.08);
+      }
+      .stage.fail {
+        border-color: #5a2330;
+        color: #f08a9b;
+        background: rgba(240, 90, 110, 0.07);
+      }
+      .arrow {
+        color: var(--subtle);
+        font-family: var(--mono);
+      }
+
+      /* ---- step cards ---- */
+      .step {
+        display: flex;
+        gap: 18px;
+        padding: 22px 0;
+        border-top: 1px dashed var(--border);
+      }
+      .step:first-of-type {
+        border-top: none;
+      }
+      .step .n {
+        flex: 0 0 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: rgba(170, 251, 0, 0.1);
+        border: 1px solid rgba(170, 251, 0, 0.3);
+        color: var(--primary);
+        font-weight: 700;
+        font-family: var(--mono);
+        display: grid;
+        place-items: center;
+        margin-top: 2px;
+      }
+      .step .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .step .body h4 {
+        margin: 4px 0 4px;
+      }
+      .step .body p {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+
+      .note {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--primary);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin: 18px 0;
+        font-size: 14.5px;
+        color: var(--muted);
+      }
+      .note strong {
+        color: var(--text);
+      }
+
+      footer {
+        padding: 40px 0 64px;
+        color: var(--subtle);
+        font-size: 14px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      @media (max-width: 640px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <div class="logo"><span class="dot"></span> UNBROKER CLOUD</div>
+        <h1><span class="accent">ubctl</span> — tu cloud<br />desde la terminal</h1>
+        <p class="lede">
+          La CLI oficial de Unbroker Cloud. Despliega apps, gestiona servicios,
+          variables de entorno y recursos cloud — todo de forma programática,
+          desde tu terminal o tu CI.
+        </p>
+        <span class="pill">$ ubctl apps deploy mi-servicio --wait</span>
+      </div>
+    </header>
+
+    <nav class="toc">
+      <div class="wrap">
+        <a href="#instalar">Instalar</a>
+        <a href="#login">Autenticación</a>
+        <a href="#flujo">Flujo de una app</a>
+        <a href="#deploy">Ciclo de deploy</a>
+        <a href="#env">Variables &amp; dominios</a>
+        <a href="#tokens">Tokens &amp; cuenta</a>
+        <a href="#recursos">Recursos cloud</a>
+        <a href="#flags">Flags &amp; config</a>
+      </div>
+    </nav>
+
+    <!-- INSTALL -->
+    <section id="instalar">
+      <div class="wrap">
+        <h2>Paso 0</h2>
+        <h3 class="title">Instalar</h3>
+        <p>
+          El repo es privado, así que necesitas acceso de lectura (un login de
+          <code class="inline">gh</code> o un <code class="inline">GITHUB_TOKEN</code>
+          que pueda leer <code class="inline">unbroker-app/ubctl</code>).
+        </p>
+
+        <h4>Binario (Linux / macOS · x64 / arm64)</h4>
+        <pre><span class="c"># requiere gh autenticado, o GITHUB_TOKEN exportado</span>
+curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre>
+
+        <h4>npm (GitHub Packages)</h4>
+        <pre><span class="c"># una sola vez: apunta el scope a GitHub Packages y autentícate</span>
+echo <span class="s">"@unbroker-app:registry=https://npm.pkg.github.com"</span> &gt;&gt; ~/.npmrc
+echo <span class="s">"//npm.pkg.github.com/:_authToken=TU_GITHUB_TOKEN"</span> &gt;&gt; ~/.npmrc
+
+npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># instala el comando `ubctl`</span></pre>
+      </div>
+    </section>
+
+    <!-- LOGIN -->
+    <section id="login">
+      <div class="wrap">
+        <h2>Paso 1</h2>
+        <h3 class="title">Autenticarse</h3>
+        <p>
+          <code class="inline">ubctl login</code> valida tu token de API contra el
+          servidor y lo guarda localmente en
+          <code class="inline">~/.config/ubctl/config.json</code> (con permisos
+          <code class="inline">0600</code>). El secreto se envía como
+          <code class="inline">X-API-Key</code> en cada petición.
+        </p>
+        <pre><span class="p">ubctl</span> login                 <span class="c"># pide el token de forma interactiva (oculto)</span>
+<span class="p">ubctl</span> login --token ub_live_… <span class="c"># o pásalo directo</span>
+echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdin  <span class="c"># o por stdin (CI)</span>
+
+<span class="p">ubctl</span> whoami                <span class="c"># confirma la cuenta y la organización activa</span></pre>
+        <div class="note">
+          <strong>De dónde sale el token:</strong> créalo en el panel de Unbroker
+          o con <code class="inline">ubctl tokens create --name mi-cli</code>. El
+          secreto <code class="inline">ub_live_…</code> se muestra <em>una sola
+          vez</em> — guárdalo en el momento. En el servidor se almacena solo su
+          hash, nunca en texto plano.
+        </div>
+      </div>
+    </section>
+
+    <!-- APP FLOW -->
+    <section id="flujo">
+      <div class="wrap">
+        <h2>Paso 2</h2>
+        <h3 class="title">El flujo completo de una app</h3>
+        <p>
+          De cero a una URL en vivo: un <strong>proyecto</strong> contiene
+          <strong>servicios</strong>, cada servicio se despliega desde un repo de
+          GitHub y produce <strong>deployments</strong> inmutables.
+        </p>
+
+        <div class="step">
+          <div class="n">1</div>
+          <div class="body">
+            <h4>Crear un proyecto</h4>
+            <p>Contenedor de servicios. El slug se genera a partir del nombre.</p>
+            <pre><span class="p">ubctl</span> apps projects create --name <span class="s">"Mi App"</span>
+<span class="p">ubctl</span> apps projects ls</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="n">2</div>
+          <div class="body">
+            <h4>Crear un servicio</h4>
+            <p>
+              Apunta a un repo público de GitHub y elige el framework. Opcional:
+              rama, comandos de build/start, puerto.
+            </p>
+            <pre><span class="p">ubctl</span> apps services create <span class="o">&lt;projectId&gt;</span> \
+  --name web \
+  --repo https://github.com/mi-org/mi-repo \
+  --framework next \
+  --branch main</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="n">3</div>
+          <div class="body">
+            <h4>Desplegar y seguir el pipeline</h4>
+            <p>
+              <code class="inline">--wait</code> sigue el deployment hasta que
+              termina, imprimiendo cada transición de estado.
+            </p>
+            <pre><span class="p">ubctl</span> apps deploy <span class="o">&lt;serviceId&gt;</span> --wait</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="n">4</div>
+          <div class="body">
+            <h4>Inspeccionar</h4>
+            <p>Historial de deployments, logs de runtime y métricas en vivo.</p>
+            <pre><span class="p">ubctl</span> apps deployments <span class="o">&lt;serviceId&gt;</span>
+<span class="p">ubctl</span> apps deployment <span class="o">&lt;deploymentId&gt;</span> --log
+<span class="p">ubctl</span> apps services logs <span class="o">&lt;serviceId&gt;</span>
+<span class="p">ubctl</span> apps services metrics <span class="o">&lt;serviceId&gt;</span></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEPLOY LIFECYCLE -->
+    <section id="deploy">
+      <div class="wrap">
+        <h2>Bajo el capó</h2>
+        <h3 class="title">El ciclo de vida de un deployment</h3>
+        <p>
+          Cada deploy avanza por una máquina de estados. Con
+          <code class="inline">--wait</code> el CLI hace polling y te muestra el
+          avance; si falla, imprime el final del build log y sale con código ≠ 0
+          (útil como gate en CI).
+        </p>
+        <div class="pipeline">
+          <span class="stage">queued</span>
+          <span class="arrow">→</span>
+          <span class="stage">building</span>
+          <span class="arrow">→</span>
+          <span class="stage">deploying</span>
+          <span class="arrow">→</span>
+          <span class="stage live">live ✓</span>
+          <span class="arrow">/</span>
+          <span class="stage fail">failed ✕</span>
+        </div>
+        <p style="font-size: 14px; margin-top: 16px">
+          Un nuevo deploy en vivo marca el anterior como
+          <code class="inline">superseded</code>. Volver a una versión previa es
+          instantáneo y no reconstruye:
+        </p>
+        <pre><span class="p">ubctl</span> apps rollback <span class="o">&lt;serviceId&gt;</span> <span class="o">&lt;deploymentId&gt;</span></pre>
+      </div>
+    </section>
+
+    <!-- ENV & DOMAINS -->
+    <section id="env">
+      <div class="wrap">
+        <h2>Paso 3</h2>
+        <h3 class="title">Variables de entorno &amp; dominios</h3>
+        <div class="grid2">
+          <div>
+            <h4>Variables (valores enmascarados)</h4>
+            <pre><span class="p">ubctl</span> apps env set <span class="o">&lt;svc&gt;</span> DATABASE_URL <span class="s">"postgres://…"</span>
+<span class="p">ubctl</span> apps env ls <span class="o">&lt;svc&gt;</span>
+<span class="p">ubctl</span> apps env rm <span class="o">&lt;svc&gt;</span> DATABASE_URL</pre>
+            <p style="font-size: 13.5px">
+              Cambiar variables marca el servicio como “needs redeploy” — no
+              redespliega solo.
+            </p>
+          </div>
+          <div>
+            <h4>Dominios propios</h4>
+            <pre><span class="p">ubctl</span> apps domains add <span class="o">&lt;svc&gt;</span> app.ejemplo.com
+<span class="p">ubctl</span> apps domains ls <span class="o">&lt;svc&gt;</span>
+<span class="p">ubctl</span> apps domains rm <span class="o">&lt;svc&gt;</span> app.ejemplo.com</pre>
+            <p style="font-size: 13.5px">
+              Cada servicio ya trae una URL
+              <code class="inline">&lt;slug&gt;.apps.cloud.unbroker.app</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOKENS & ACCOUNT -->
+    <section id="tokens">
+      <div class="wrap">
+        <h2>Cuenta</h2>
+        <h3 class="title">Tokens, uso y organizaciones</h3>
+        <div class="grid2">
+          <div>
+            <h4>API tokens</h4>
+            <pre><span class="p">ubctl</span> tokens create --name ci --scope read/write
+<span class="p">ubctl</span> tokens ls
+<span class="p">ubctl</span> tokens rm <span class="o">&lt;id&gt;</span></pre>
+          </div>
+          <div>
+            <h4>Uso &amp; organizaciones</h4>
+            <pre><span class="p">ubctl</span> account usage
+<span class="p">ubctl</span> account invoices
+<span class="p">ubctl</span> account activity
+<span class="p">ubctl</span> orgs</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESELLER -->
+    <section id="recursos">
+      <div class="wrap">
+        <h2>Infraestructura</h2>
+        <h3 class="title">Recursos cloud</h3>
+        <p>
+          Además de las apps (PaaS), <code class="inline">ubctl</code> maneja la
+          capa de recursos: máquinas, bases de datos, Kubernetes y red.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Comando</th>
+              <th>Qué hace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ubctl droplets</code></td>
+              <td>ls · get · reboot · power-off · power-on · rm</td>
+            </tr>
+            <tr>
+              <td><code>ubctl db</code></td>
+              <td>ls · get · connection (credenciales) · rm</td>
+            </tr>
+            <tr>
+              <td><code>ubctl k8s</code></td>
+              <td>ls · get · kubeconfig · rm</td>
+            </tr>
+            <tr>
+              <td><code>ubctl firewalls</code></td>
+              <td>ls · get · rm</td>
+            </tr>
+            <tr>
+              <td><code>ubctl lb · vpcs · spaces</code></td>
+              <td>ls (load balancers, VPCs, buckets)</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre><span class="c"># el kubeconfig sale como YAML — redirígelo a un archivo</span>
+<span class="p">ubctl</span> k8s kubeconfig <span class="o">&lt;id&gt;</span> &gt; kubeconfig.yaml</pre>
+      </div>
+    </section>
+
+    <!-- FLAGS -->
+    <section id="flags">
+      <div class="wrap">
+        <h2>Referencia</h2>
+        <h3 class="title">Flags globales &amp; configuración</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Flag / variable</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--json</code></td>
+              <td>Salida JSON cruda en cualquier comando de lectura (para scripting).</td>
+            </tr>
+            <tr>
+              <td><code>--org &lt;id&gt;</code></td>
+              <td>Actúa contra una organización concreta (<code>X-Org-Id</code>).</td>
+            </tr>
+            <tr>
+              <td><code>--api-url &lt;url&gt;</code></td>
+              <td>Sobrescribe la URL base de la API.</td>
+            </tr>
+            <tr>
+              <td><code>UBCTL_TOKEN</code></td>
+              <td>Token sin guardarlo en disco (ideal para CI).</td>
+            </tr>
+            <tr>
+              <td><code>UBCTL_API_URL</code></td>
+              <td>URL base por entorno.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>Precedencia de configuración:</strong> flag
+          <span class="arrow">→</span> variable de entorno
+          (<code class="inline">UBCTL_*</code>) <span class="arrow">→</span>
+          archivo <code class="inline">~/.config/ubctl/config.json</code>
+          <span class="arrow">→</span> default
+          (<code class="inline">https://dev.api.cloud.unbroker.app</code>).
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        ubctl · CLI oficial de Unbroker Cloud ·
+        <a href="https://github.com/unbroker-app/ubctl">unbroker-app/ubctl</a>
+        · Privado — todos los derechos reservados.
+      </div>
+    </footer>
+  </body>
+</html>
