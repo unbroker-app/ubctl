@@ -4,9 +4,13 @@ import { loginCommand } from "./commands/login";
 import { logoutCommand } from "./commands/logout";
 import { whoamiCommand } from "./commands/whoami";
 import { appsCommand } from "./commands/apps";
+import { beaconCommand } from "./commands/beacon";
+import { githubCommand } from "./commands/github";
 import { tokensCommand } from "./commands/tokens";
 import { accountCommand } from "./commands/account";
 import { orgsCommand } from "./commands/orgs";
+import { teamCommand } from "./commands/team";
+import { notificationsCommand } from "./commands/notifications";
 import { resellerCommands } from "./commands/reseller";
 
 /**
@@ -35,11 +39,15 @@ export function buildProgram(): Command {
 
   // Products
   program.addCommand(appsCommand());
+  program.addCommand(beaconCommand());
+  program.addCommand(githubCommand());
 
   // Account management
   program.addCommand(tokensCommand());
   program.addCommand(accountCommand());
   program.addCommand(orgsCommand());
+  program.addCommand(teamCommand());
+  program.addCommand(notificationsCommand());
 
   // Cloud resources (DigitalOcean reseller layer)
   for (const c of resellerCommands()) program.addCommand(c);
