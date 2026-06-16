@@ -68,6 +68,9 @@ export interface Service {
   routed: boolean;
   domains: string[];
   createdAt: number;
+  /** Page access control (the "Security" tab); present on the service object. */
+  accessMode?: "public" | "password" | "organization";
+  hasPassword?: boolean;
 }
 
 export interface DeploymentSummary {
@@ -220,4 +223,86 @@ export interface ActivityResponse {
 }
 export interface OrganizationsResponse {
   organizations: Organization[];
+}
+export interface OrganizationResponse {
+  organization: Organization;
+}
+
+export interface Billing {
+  billingEmail: string;
+  company: string;
+  address: string;
+  city: string;
+  country: string;
+  taxId: string;
+}
+export interface BillingResponse {
+  billing: Billing;
+}
+
+/** Whether the org has a cloud provider (DigitalOcean) connected. */
+export interface ConnectionStatusResponse {
+  connected: boolean;
+}
+
+export interface BandwidthPoint {
+  label: string;
+  value: number;
+}
+export interface Bandwidth {
+  points: BandwidthPoint[];
+  deltaPct: number;
+  unit: string;
+}
+export interface BandwidthResponse {
+  bandwidth: Bandwidth;
+}
+
+/** Anomaly-alerts state. `anomalies` is only present on the (web-only) toggle. */
+export interface AlertsResponse {
+  enabled: boolean;
+  anomalies?: number;
+}
+
+/* ----- Notifications ----- */
+
+export interface Notification {
+  id: string;
+  title: string;
+  body: string | null;
+  tone: string;
+  read: boolean;
+  time: number;
+}
+export interface NotificationsResponse {
+  notifications: Notification[];
+  unread: number;
+}
+
+/* ----- Team & invitations ----- */
+
+export interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+export interface MembersResponse {
+  members: Member[];
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  invitedByName: string | null;
+  createdAt: number;
+  expiresAt: number;
+}
+export interface InvitationsResponse {
+  invitations: Invitation[];
+}
+export interface InvitationResponse {
+  invitation: Invitation;
 }

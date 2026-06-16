@@ -44,7 +44,10 @@ ubctl apps deploy <serviceId> --wait # trigger a deployment and follow it to com
 
 ```
 ubctl apps projects ls | get <id> | create --name <name> | rename <id> --name <name> | rm <id>
-ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [...] | rm <id> | logs <id> | metrics <id>
+ubctl apps projects deploy-all <id> | manifest <id> [--values] | import --file <path> [--name <n>] | duplicate <id> --name <n>
+ubctl apps projects env ls <projectId> | set <projectId> <KEY> <VALUE> | rm <projectId> <KEY>
+ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [...] | update <id> [...] | rm <id> | logs <id> | metrics <id>
+ubctl apps services security <id> --mode public|password|organization [--password <pw>]
 ubctl apps env ls <serviceId> | set <serviceId> <KEY> <VALUE> | rm <serviceId> <KEY>
 ubctl apps domains ls <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
 ubctl apps deploy <serviceId> [--wait] | deployments <serviceId> | deployment <id> [--log] | rollback <serviceId> <deploymentId>
@@ -52,21 +55,54 @@ ubctl apps deploy <serviceId> [--wait] | deployments <serviceId> | deployment <i
 
 Add `--json` to any read command for machine-readable output.
 
+### Beacon (realtime pub/sub)
+
+```
+ubctl beacon ls | get <id> | create --name <name> | rm <id>
+ubctl beacon enable <id> | disable <id> | token <id> | usage <id>
+ubctl beacon channels <id> [--q <filter>] | channel <id> --channel <name>
+ubctl beacon publish <id> --channel <name> --data <json>
+ubctl beacon settings get <id> | set <id> [--origin <o> ...] [--anon-subscribe <p> ...] [--allow-anonymous|--disallow-anonymous]
+```
+
+### GitHub integration
+
+```
+ubctl github installations ls | rm <id>
+ubctl github repos
+ubctl github branches --installation <id> --owner <owner> --repo <repo>
+```
+
+Connecting a new installation is a browser OAuth flow — do it in the web
+dashboard; the CLI reads what's already connected (pass the installation id to
+`apps services create --github-installation` once it's listed here).
+
 ### Account commands
 
 ```
 ubctl tokens ls | create --name <name> [--scope read|read/write] | rm <id>
-ubctl account usage | invoices | activity
-ubctl orgs
+ubctl account usage | invoices | activity | bandwidth | alerts
+ubctl orgs                                  # list
+ubctl orgs get <id> | billing <id> | connection <id>
+ubctl team ls | invite <email> [--role Owner|Admin|Member|Deploy] | rm <id>
+ubctl team invitations ls | rm <id>
+ubctl notifications ls | read [id] | unread <id>
 ```
 
 `tokens create` prints the secret **once** — store it immediately.
+
+Creating/renaming/deleting organizations, editing billing, connecting a cloud
+provider and toggling anomaly alerts require a signed-in web session, so they
+live in the dashboard — an API token can read these but not change them.
 
 ### Cloud resources (DigitalOcean reseller)
 
 ```
 ubctl droplets ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
-ubctl db ls | get <id> | connection <id> | rm <id>
+ubctl db ls | get <id> | create --name --engine --version --region --size [--nodes --storage --tag ...] | rm <id>
+ubctl db connection <id> | metrics <id>
+ubctl db users ls <id> | create <id> <name> | rm <id> <name>
+ubctl db dbs ls <id> | create <id> <name> | rm <id> <name>
 ubctl k8s ls | get <id> | kubeconfig <id> | rm <id>
 ubctl firewalls ls | get <id> | rm <id>
 ubctl lb
