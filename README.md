@@ -137,7 +137,7 @@ ubctl apps services create prj_123 \
   --repo https://github.com/acme/store \
   --framework next \
   --branch main
-# → Created service web (svc_456). URL: https://web-store.unbroker.app
+# → Created service web (svc_456). URL: https://web-store.unbroker.cloud
 
 # (Private repo? connect it in the dashboard, then:
 #  ubctl github installations ls   → grab the id
@@ -290,7 +290,7 @@ Resolution order for every setting (highest precedence first):
 | Setting  | Flag             | Env var          | Default                                  |
 | -------- | ---------------- | ---------------- | ---------------------------------------- |
 | Token    | *(set by login)* | `UBCTL_TOKEN`    | —                                        |
-| API URL  | `--api-url`      | `UBCTL_API_URL`  | `https://dev.api.cloud.unbroker.app`     |
+| API URL  | `--api-url`      | `UBCTL_API_URL`  | `https://api.unbroker.cloud`             |
 | Org      | `--org`          | `UBCTL_ORG`      | your default (personal) organization     |
 
 The token is deliberately **not** a flag — that keeps it out of your shell

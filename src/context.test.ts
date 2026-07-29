@@ -76,3 +76,19 @@ test("a trailing slash on the API URL is normalised away", () => {
   const ctx = resolveContext({ apiUrl: "https://x.api/" });
   assert.equal(ctx.apiUrl, "https://x.api");
 });
+
+// Guards the built-in default itself, not the precedence logic above: the
+// previous default (`dev.api.cloud.unbroker.app`) shipped for months while being
+// NXDOMAIN, because a Vercel DNS zone-wide wildcard answered for it. A URL is a
+// contract with anyone who runs the CLI without configuring anything, so assert
+// the shape rather than trust review to notice. Offline on purpose — a network
+// probe here would make the suite flaky and CI-hostile.
+test("the built-in default API URL is https on the unbroker.cloud domain", () => {
+  const url = new URL(DEFAULT_API_URL);
+  assert.equal(url.protocol, "https:");
+  assert.ok(
+    url.hostname === "unbroker.cloud" || url.hostname.endsWith(".unbroker.cloud"),
+    `DEFAULT_API_URL must be on unbroker.cloud (the platform domain), got ${url.hostname}. ` +
+      "unbroker.app is mail-only and has no web records.",
+  );
+});
