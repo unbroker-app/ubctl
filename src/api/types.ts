@@ -4,6 +4,8 @@ export interface Profile {
   id: string;
   name: string;
   email: string;
+  identityType?: "user" | "api_token";
+  tokenName?: string;
 }
 
 export interface ProfileResponse {
@@ -17,6 +19,8 @@ export interface Account {
   name: string;
   status: string;
   team: { name: string; uuid: string };
+  identityType?: "user" | "api_token";
+  tokenName?: string;
 }
 
 export interface AccountResponse {

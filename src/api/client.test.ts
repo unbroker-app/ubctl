@@ -95,6 +95,27 @@ test("maps the API error envelope onto ApiError", async () => {
   );
 });
 
+test("preserves Fastify's top-level error message", async () => {
+  const fetchFn = async () =>
+    new Response(
+      JSON.stringify({
+        message: "Route GET:/spaces not found",
+        error: "Not Found",
+        statusCode: 404,
+      }),
+      { status: 404, statusText: "Not Found" },
+    );
+  const client = new ApiClient({ apiUrl: "https://api.test", fetchFn });
+
+  await assert.rejects(client.get("/spaces"), (err: unknown) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.status, 404);
+    assert.equal(err.code, "http_404");
+    assert.equal(err.message, "Route GET:/spaces not found");
+    return true;
+  });
+});
+
 test("a transport failure becomes a network_error ApiError", async () => {
   const fetchFn = async (): Promise<Response> => {
     throw new Error("getaddrinfo ENOTFOUND");

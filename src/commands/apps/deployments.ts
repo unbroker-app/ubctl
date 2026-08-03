@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import type {
   DeploymentResponse,
   DeploymentsResponse,
@@ -8,6 +8,7 @@ import { authed, withJson, sleep } from "../helpers";
 import { CliError } from "../../util/errors";
 import { print, printJson, printTable } from "../../util/output";
 import { age, duration } from "../../util/format";
+import { positiveNumber } from "../../util/validate";
 
 const TERMINAL: DeploymentStatus[] = ["live", "failed", "superseded"];
 
@@ -18,15 +19,18 @@ export function deployCommand(): Command {
       .description("Trigger a deployment for a service")
       .argument("<serviceId>", "service id")
       .option("--wait", "poll until the deployment finishes")
-      .option(
-        "--timeout <seconds>",
-        "max seconds to wait with --wait",
-        "300",
+      .addOption(
+        new Option(
+          "--timeout <seconds>",
+          "max seconds to wait with --wait",
+        )
+          .argParser((value) => positiveNumber(value, "timeout"))
+          .default(300),
       )
       .action(
         async (
           serviceId: string,
-          opts: { wait?: boolean; timeout: string; json?: boolean },
+          opts: { wait?: boolean; timeout: number; json?: boolean },
           cmd: Command,
         ) => {
           const { ctx, client } = authed(cmd);
@@ -45,7 +49,7 @@ export function deployCommand(): Command {
           const final = await poll(
             client,
             deployment.id,
-            Number(opts.timeout) * 1000,
+            opts.timeout * 1000,
             !ctx.json,
           );
           if (ctx.json) return printJson(final);

@@ -193,7 +193,7 @@ ubctl apps projects deploy-all prj_123                    # deploy every service
 ubctl db create \
   --name orders-db \
   --engine pg \
-  --version 16 \
+  --engine-version 16 \
   --region nyc3 \
   --size db-s-1vcpu-1gb \
   --nodes 1
@@ -342,7 +342,7 @@ ubctl beacon settings get <id> | set <id> [--origin <o> ...] [--anon-subscribe <
 ### Databases (managed clusters)
 
 ```
-ubctl db ls | get <id> | create --name --engine --version --region --size [--nodes --storage --price --tag ...] | rm <id>
+ubctl db ls | get <id> | create --name --engine --engine-version --region --size [--nodes --storage --price --tag ...] | rm <id>
 ubctl db connection <id> | metrics <id>
 ubctl db users ls <id> | create <id> <name> | rm <id> <name>
 ubctl db dbs ls <id> | create <id> <name> | rm <id> <name>
@@ -366,25 +366,18 @@ the CLI reads what's already connected. Pass the id to
 ubctl tokens ls | create --name <name> [--scope read|read/write] | rm <id>
 ubctl account usage | invoices | activity | bandwidth | alerts
 ubctl orgs                                   # list orgs you belong to
-ubctl orgs get <id> | billing <id> | connection <id>
+ubctl orgs get <id> | billing <id>
 ubctl team ls | invite <email> [--role Owner|Admin|Member|Deploy] | rm <id>
 ubctl team invitations ls | rm <id>
 ubctl notifications ls | read [id] | unread <id>
 ```
 
-### Cloud resources (DigitalOcean reseller)
+### Cloud resources
 
 ```
 ubctl droplets ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
-ubctl k8s ls | get <id> | kubeconfig <id> | rm <id>
-ubctl firewalls ls | get <id> | rm <id>
-ubctl lb
-ubctl vpcs
-ubctl spaces
+ubctl db ls | get <id> | connection <id> | metrics <id> | rm <id>
 ```
-
-`k8s kubeconfig <id>` prints YAML — redirect it:
-`ubctl k8s kubeconfig <id> > kubeconfig.yaml`.
 
 ---
 

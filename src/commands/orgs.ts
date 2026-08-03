@@ -3,7 +3,6 @@ import type {
   OrganizationsResponse,
   OrganizationResponse,
   BillingResponse,
-  ConnectionStatusResponse,
 } from "../api/types";
 import { authed, withJson } from "./helpers";
 import { print, printJson, printTable } from "../util/output";
@@ -68,20 +67,6 @@ export function orgsCommand(): Command {
         print(`city:    ${billing.city || "-"}`);
         print(`country: ${billing.country || "-"}`);
         print(`tax id:  ${billing.taxId || "-"}`);
-      }),
-  );
-
-  withJson(
-    orgs
-      .command("connection <id>")
-      .description("Show whether a cloud provider is connected")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const res = await client.get<ConnectionStatusResponse>(
-          `/organizations/${id}/connection`,
-        );
-        if (ctx.json) return printJson(res);
-        print(res.connected ? "Connected" : "Not connected");
       }),
   );
 

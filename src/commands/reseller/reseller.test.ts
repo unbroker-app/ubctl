@@ -7,11 +7,13 @@ function find(name: string, of: Command): Command | undefined {
   return of.commands.find((c) => c.name() === name);
 }
 
-test("all reseller resource commands are registered", () => {
+test("only control-plane-backed cloud commands are registered", () => {
   const program = buildProgram();
-  for (const name of ["droplets", "db", "k8s", "firewalls", "lb", "vpcs", "spaces"]) {
+  for (const name of ["droplets", "db"]) {
     assert.ok(find(name, program), `${name} should exist`);
   }
+  for (const name of ["k8s", "firewalls", "lb", "vpcs", "spaces"])
+    assert.equal(find(name, program), undefined, `${name} has no API route`);
 });
 
 test("droplets exposes its lifecycle subcommands", () => {
@@ -20,10 +22,4 @@ test("droplets exposes its lifecycle subcommands", () => {
   for (const c of ["ls", "get", "reboot", "power-off", "power-on", "rm"]) {
     assert.ok(find(c, droplets), `droplets ${c} should exist`);
   }
-});
-
-test("k8s exposes kubeconfig", () => {
-  const program = buildProgram();
-  const k8s = find("k8s", program)!;
-  assert.ok(find("kubeconfig", k8s));
 });

@@ -11,6 +11,7 @@ import type {
 } from "../../api/reseller-types";
 import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
+import { positiveInteger, positiveNumber } from "../../util/validate";
 
 // Engines the API accepts (databases.schema.ts createDatabaseSchema).
 const ENGINES = [
@@ -26,12 +27,12 @@ const ENGINES = [
 interface CreateOpts {
   name: string;
   engine: string;
-  version: string;
+  engineVersion: string;
   region: string;
   size: string;
-  nodes: string;
-  storage?: string;
-  price?: string;
+  nodes: number;
+  storage?: number;
+  price?: number;
   tag?: string[];
 }
 
@@ -87,25 +88,40 @@ export function databasesCommand(): Command {
           .choices(ENGINES)
           .makeOptionMandatory(),
       )
-      .requiredOption("--version <version>", "engine version, e.g. 16")
+      .requiredOption(
+        "--engine-version <version>",
+        "engine version, e.g. 16",
+      )
       .requiredOption("--region <region>", "region slug, e.g. nyc3")
       .requiredOption("--size <size>", "node size slug, e.g. db-s-1vcpu-1gb")
-      .option("--nodes <n>", "number of nodes (1-9)", "1")
-      .option("--storage <gb>", "storage in GB")
-      .option("--price <amount>", "monthly price hint")
+      .addOption(
+        new Option("--nodes <n>", "number of nodes (1-9)")
+          .argParser((value) => positiveInteger(value, "nodes", 9))
+          .default(1),
+      )
+      .addOption(
+        new Option("--storage <gb>", "storage in GB").argParser((value) =>
+          positiveInteger(value, "storage"),
+        ),
+      )
+      .addOption(
+        new Option("--price <amount>", "monthly price hint").argParser(
+          (value) => positiveNumber(value, "price"),
+        ),
+      )
       .option("--tag <tag>", "tag (repeatable)", collect, [])
       .action(async (opts: CreateOpts, cmd: Command) => {
         const { ctx, client } = authed(cmd);
         const body: Record<string, unknown> = {
           name: opts.name,
           engine: opts.engine,
-          version: opts.version,
+          version: opts.engineVersion,
           region: opts.region,
           size: opts.size,
-          num_nodes: Number(opts.nodes),
+          num_nodes: opts.nodes,
         };
-        if (opts.storage) body.storageGb = Number(opts.storage);
-        if (opts.price) body.pricePerMo = Number(opts.price);
+        if (opts.storage !== undefined) body.storageGb = opts.storage;
+        if (opts.price !== undefined) body.pricePerMo = opts.price;
         if (opts.tag && opts.tag.length) body.tags = opts.tag;
 
         const { database } = await client.post<DatabaseResponse>(

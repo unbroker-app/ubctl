@@ -28,7 +28,19 @@ export function whoamiCommand(): Command {
         return;
       }
       const { account } = res;
-      print(`Account: ${account.name} <${account.email}>`);
+      if (account.identityType === "api_token") {
+        print(`Identity: API token "${account.tokenName ?? account.name}"`);
+      } else if (
+        account.uuid === "demo" &&
+        ctx.token?.startsWith("ub_live_")
+      ) {
+        // Compatibility with control planes predating explicit token identity.
+        // An org token does not carry its creator's user session and must not be
+        // presented as the server's Demo User fallback.
+        print("Identity: Organization API token");
+      } else {
+        print(`Account: ${account.name} <${account.email}>`);
+      }
       print(`Org:     ${account.team.name} (${account.team.uuid})`);
       print(`API:     ${ctx.apiUrl}`);
     });
