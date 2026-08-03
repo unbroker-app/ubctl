@@ -63,8 +63,8 @@ ubctl --help
 
 Every command (except `login`/`logout`) talks to the API with an **API token**.
 
-1. Create a token. If you already have one (from the web dashboard → *API
-   tokens*), skip to step 2. Otherwise, once you're logged in you can mint more:
+1. Create a token. If you already have one (from the web dashboard → _API
+   tokens_), skip to step 2. Otherwise, once you're logged in you can mint more:
 
    ```bash
    ubctl tokens create --name "my-laptop" --scope read/write
@@ -107,14 +107,14 @@ ubctl apps deploy <serviceId> --wait
 
 ## Core concepts
 
-| Concept          | What it is                                                                 |
-| ---------------- | -------------------------------------------------------------------------- |
-| **Organization** | The tenant everything belongs to. You have a personal one plus any teams.  |
-| **Project**      | A group of services that share project-wide env vars.                      |
-| **Service**      | One deployable unit — a GitHub repo (built for you) or a prebuilt image.   |
-| **Deployment**   | One build+release of a service. You can follow it live and roll back.      |
-| **Database**     | A managed cluster (Postgres, MySQL, Redis, …) with users & logical DBs.    |
-| **Beacon**       | A realtime pub/sub project — channels you publish to and subscribe from.   |
+| Concept          | What it is                                                                |
+| ---------------- | ------------------------------------------------------------------------- |
+| **Organization** | The tenant everything belongs to. You have a personal one plus any teams. |
+| **Project**      | A group of services that share project-wide env vars.                     |
+| **Service**      | One deployable unit — a GitHub repo (built for you) or a prebuilt image.  |
+| **Deployment**   | One build+release of a service. You can follow it live and roll back.     |
+| **Database**     | A managed cluster (Postgres, MySQL, Redis, …) with users & logical DBs.   |
+| **Beacon**       | A realtime pub/sub project — channels you publish to and subscribe from.  |
 
 Most resources are scoped to the **active organization**. Override per command
 with `--org <id>` (see [`ubctl orgs`](#account--organizations) for the ids).
@@ -286,11 +286,11 @@ Resolution order for every setting (highest precedence first):
 3. The saved config file (`~/.config/ubctl/config.json`, mode `0600`)
 4. Built-in default
 
-| Setting  | Flag             | Env var          | Default                                  |
-| -------- | ---------------- | ---------------- | ---------------------------------------- |
-| Token    | *(set by login)* | `UBCTL_TOKEN`    | —                                        |
-| API URL  | `--api-url`      | `UBCTL_API_URL`  | `https://api.unbroker.cloud`             |
-| Org      | `--org`          | `UBCTL_ORG`      | your default (personal) organization     |
+| Setting | Flag             | Env var         | Default                              |
+| ------- | ---------------- | --------------- | ------------------------------------ |
+| Token   | _(set by login)_ | `UBCTL_TOKEN`   | —                                    |
+| API URL | `--api-url`      | `UBCTL_API_URL` | `https://api.unbroker.cloud`         |
+| Org     | `--org`          | `UBCTL_ORG`     | your default (personal) organization |
 
 The token is deliberately **not** a flag — that keeps it out of your shell
 history and `ps` output. Use `login`, `UBCTL_TOKEN`, or stdin.
@@ -376,14 +376,13 @@ ubctl notifications ls | read [id] | unread <id>
 
 ```
 ubctl droplets ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
-ubctl db ls | get <id> | connection <id> | metrics <id> | rm <id>
 ```
 
 ---
 
 ## What lives in the dashboard only
 
-An API token authenticates as your *organization*, not as a signed-in *user*, so
+An API token authenticates as your _organization_, not as a signed-in _user_, so
 a few user-level actions can't be done from the CLI and return `401` if attempted.
 Do these in the web dashboard:
 

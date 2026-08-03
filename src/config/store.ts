@@ -7,7 +7,9 @@ import {
   rmSync,
   existsSync,
   chmodSync,
+  renameSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 
 /** Persisted CLI configuration. All fields optional — a fresh install has none. */
 export interface StoredConfig {
@@ -25,7 +27,10 @@ export interface StoredConfig {
  */
 export function configDir(): string {
   const base = process.env.XDG_CONFIG_HOME?.trim();
-  return join(base && base.length > 0 ? base : join(homedir(), ".config"), "ubctl");
+  return join(
+    base && base.length > 0 ? base : join(homedir(), ".config"),
+    "ubctl",
+  );
 }
 
 export function configPath(): string {
@@ -53,8 +58,6 @@ export function loadConfig(): StoredConfig {
  */
 export function saveConfig(patch: StoredConfig): StoredConfig {
   const next = { ...loadConfig(), ...patch };
-  mkdirSync(configDir(), { recursive: true, mode: 0o700 });
-  chmodSync(configDir(), 0o700);
   writeConfig(next);
   return next;
 }
@@ -75,10 +78,20 @@ export function deleteConfig(): void {
 }
 
 function writeConfig(config: StoredConfig): void {
-  writeFileSync(configPath(), JSON.stringify(config, null, 2) + "\n", {
-    mode: 0o600,
-  });
-  // `mode` only affects newly-created files. Always tighten an existing file
-  // before returning because it may now contain a bearer token.
-  chmodSync(configPath(), 0o600);
+  mkdirSync(configDir(), { recursive: true, mode: 0o700 });
+  chmodSync(configDir(), 0o700);
+  const target = configPath();
+  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    // A new owner-only file avoids ever exposing the bearer token through the
+    // permissions of a pre-existing config. Same-directory rename is atomic.
+    writeFileSync(temporary, JSON.stringify(config, null, 2) + "\n", {
+      mode: 0o600,
+      flag: "wx",
+    });
+    renameSync(temporary, target);
+    chmodSync(target, 0o600);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }

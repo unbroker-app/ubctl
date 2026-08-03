@@ -10,15 +10,14 @@ import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 import { age } from "../../util/format";
 import { CliError } from "../../util/errors";
-import {
-  githubRepositoryUrl,
-  positiveInteger,
-} from "../../util/validate";
+import { repositoryUrl, positiveInteger } from "../../util/validate";
 
 const FRAMEWORKS: Framework[] = [
   "next",
   "astro",
+  "nixpacks",
   "node",
+  "worker",
   "react",
   "vue",
   "vite",
@@ -58,9 +57,8 @@ export function servicesCommand(): Command {
       .description("List services")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { services: rows } = await client.get<ServicesResponse>(
-          "/apps/services",
-        );
+        const { services: rows } =
+          await client.get<ServicesResponse>("/apps/services");
         if (ctx.json) return printJson(rows);
         printTable(
           rows.map((s) => ({ ...s, created: age(s.createdAt) })),
@@ -90,9 +88,14 @@ export function servicesCommand(): Command {
         print(`name:      ${service.name} (${service.slug})`);
         print(`repo:      ${service.repoUrl} @ ${service.branch}`);
         print(`framework: ${service.framework}`);
-        print(`status:    ${service.status}${service.needsRedeploy ? " (needs redeploy)" : ""}`);
-        print(`url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`);
-        if (service.domains.length) print(`domains:   ${service.domains.join(", ")}`);
+        print(
+          `status:    ${service.status}${service.needsRedeploy ? " (needs redeploy)" : ""}`,
+        );
+        print(
+          `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
+        );
+        if (service.domains.length)
+          print(`domains:   ${service.domains.join(", ")}`);
         print(`created:   ${age(service.createdAt)}`);
       }),
   );
@@ -103,8 +106,8 @@ export function servicesCommand(): Command {
       .description("Create a service in a project")
       .requiredOption("--name <name>", "service name")
       .addOption(
-        new Option("--repo <url>", "https://github.com/<owner>/<repo>")
-          .argParser(githubRepositoryUrl)
+        new Option("--repo <url>", "HTTPS GitHub, GitLab or Bitbucket URL")
+          .argParser(repositoryUrl)
           .makeOptionMandatory(),
       )
       .addOption(
@@ -116,9 +119,10 @@ export function servicesCommand(): Command {
       .option("--build <cmd>", "build command override")
       .option("--start <cmd>", "start command override")
       .addOption(
-        new Option("--port <port>", "listen port (server frameworks)").argParser(
-          (value) => positiveInteger(value, "port", 65535),
-        ),
+        new Option(
+          "--port <port>",
+          "listen port (server frameworks)",
+        ).argParser((value) => positiveInteger(value, "port", 65535)),
       )
       .option("--output-dir <dir>", "static build output dir")
       .option("--root-dir <dir>", "monorepo subdir to build from")
@@ -126,7 +130,9 @@ export function servicesCommand(): Command {
         new Option(
           "--github-installation <id>",
           "GitHub installation id (see `ubctl github installations ls`)",
-        ).argParser((value) => positiveInteger(value, "GitHub installation id")),
+        ).argParser((value) =>
+          positiveInteger(value, "GitHub installation id"),
+        ),
       )
       .action(async (projectId: string, opts: CreateOpts, cmd: Command) => {
         const { ctx, client } = authed(cmd);
@@ -161,7 +167,9 @@ export function servicesCommand(): Command {
       .description("Update a service's config")
       .option("--name <name>", "rename the service")
       .option("--branch <branch>", "git branch")
-      .addOption(new Option("--framework <fw>", "framework").choices(FRAMEWORKS))
+      .addOption(
+        new Option("--framework <fw>", "framework").choices(FRAMEWORKS),
+      )
       .addOption(
         new Option("--port <port>", "listen port").argParser((value) =>
           positiveInteger(value, "port", 65535),
@@ -274,7 +282,9 @@ export function servicesCommand(): Command {
           print("No metrics — the service isn't running.");
           return;
         }
-        print(`replicas: ${metrics.replicas.ready}/${metrics.replicas.desired} ready`);
+        print(
+          `replicas: ${metrics.replicas.ready}/${metrics.replicas.desired} ready`,
+        );
         print(
           `limits:   ${metrics.limits.cpuMillicores}m CPU, ${metrics.limits.memoryMiB}Mi memory`,
         );

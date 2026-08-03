@@ -23,21 +23,28 @@ export function whoamiCommand(): Command {
         throw err;
       }
 
+      const legacyTokenIdentity =
+        res.account.uuid === "demo" && ctx.token?.startsWith("ub_live_");
+      const account = legacyTokenIdentity
+        ? {
+            ...res.account,
+            uuid: `token:${res.account.team.uuid}`,
+            name: "Organization API token",
+            email: "",
+            identityType: "api_token" as const,
+          }
+        : res.account;
+
       if (ctx.json) {
-        printJson({ ...res.account, apiUrl: ctx.apiUrl });
+        printJson({ ...account, apiUrl: ctx.apiUrl });
         return;
       }
-      const { account } = res;
       if (account.identityType === "api_token") {
-        print(`Identity: API token "${account.tokenName ?? account.name}"`);
-      } else if (
-        account.uuid === "demo" &&
-        ctx.token?.startsWith("ub_live_")
-      ) {
-        // Compatibility with control planes predating explicit token identity.
-        // An org token does not carry its creator's user session and must not be
-        // presented as the server's Demo User fallback.
-        print("Identity: Organization API token");
+        print(
+          account.tokenName
+            ? `Identity: API token "${account.tokenName}"`
+            : "Identity: Organization API token",
+        );
       } else {
         print(`Account: ${account.name} <${account.email}>`);
       }

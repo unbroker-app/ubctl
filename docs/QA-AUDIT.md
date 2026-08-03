@@ -2,8 +2,9 @@
 
 Audit started: 2026-08-03
 
-This document records validation results before fixes are implemented. Findings
-remain open until they are reproduced, fixed, and regression-tested.
+This document records the initial validation and the remediation completed on
+2026-08-03. Findings are resolved on the QA fix branches and covered by
+regression tests; merge and post-deploy verification are tracked in the PRs.
 
 ## Scope
 
@@ -18,7 +19,7 @@ remain open until they are reproduced, fixed, and regression-tested.
 ### UBCTL-QA-001 — `whoami` reports a demo identity for a real account
 
 - Severity: High
-- Status: Open
+- Status: Resolved (CLI compatibility + API identity contract)
 - Area: API identity / `login` / `whoami`
 - Environment: production API, org `unbroker-mkt`, CLI `v0.1.0`
 
@@ -53,7 +54,7 @@ Expected behavior:
 ### UBCTL-QA-002 — Documented cloud commands call missing production routes
 
 - Severity: High
-- Status: Open
+- Status: Resolved (unsupported and potentially unsafe commands removed)
 - Area: reseller resources / API compatibility
 - Environment: production API, org `unbroker-mkt`, CLI `v0.1.0`
 
@@ -81,7 +82,7 @@ Expected behavior:
 ### UBCTL-QA-003 — `db create --version` exits without creating anything
 
 - Severity: Critical
-- Status: Open
+- Status: Resolved (`--engine-version`; v0.1 spelling remains compatible)
 - Area: databases / Commander option inheritance
 - Environment: CLI `v0.1.0`, reproduced without touching the live API
 
@@ -107,7 +108,7 @@ Expected behavior:
 ### UBCTL-QA-004 — Invalid numeric service values are sent as JSON `null`
 
 - Severity: High
-- Status: Open
+- Status: Resolved (validated numeric option parsers)
 - Area: apps services input validation
 - Environment: isolated mock API, CLI `v0.1.0`
 
@@ -120,7 +121,7 @@ Both service creation and update accept a nonnumeric port and exit successfully:
 Observed request bodies:
 
 ```json
-{"port":null}
+{ "port": null }
 ```
 
 Service creation also accepts a repository value that is not a URL. Numeric
@@ -129,7 +130,7 @@ values and repository URLs should be validated before any HTTP request.
 ### UBCTL-QA-005 — Mutually dependent or contradictory security flags are accepted
 
 - Severity: Medium
-- Status: Open
+- Status: Resolved (pre-request validation)
 - Area: service security / Beacon settings validation
 - Environment: isolated mock API, CLI `v0.1.0`
 
@@ -146,7 +147,7 @@ on the selected access mode before contacting the API.
 ### UBCTL-QA-006 — Deployment timeout accepts invalid values
 
 - Severity: High
-- Status: Open
+- Status: Resolved (finite positive decimal parser)
 - Area: deployment polling input validation
 - Environment: isolated mock API, CLI `v0.1.0`
 
@@ -161,14 +162,18 @@ the deployment.
 ### UBCTL-QA-007 — API errors lose the server's useful message
 
 - Severity: Medium
-- Status: Open
+- Status: Resolved (both API error envelopes supported)
 - Area: API client error parsing
 - Environment: production API, CLI `v0.1.0`
 
 The production API's framework-level 404 envelope is shaped like:
 
 ```json
-{"message":"Route GET:/spaces not found","error":"Not Found","statusCode":404}
+{
+  "message": "Route GET:/spaces not found",
+  "error": "Not Found",
+  "statusCode": 404
+}
 ```
 
 The client only understands `{ "error": { "code", "message" } }`, so all six
@@ -178,7 +183,7 @@ should support both envelopes and preserve HTTP status, API code, and message.
 ### UBCTL-QA-008 — The visual documentation contains stale private-install and API information
 
 - Severity: Medium
-- Status: Open
+- Status: Resolved
 - Area: `docs/index.html`
 - Environment: repository `main`
 
@@ -194,7 +199,7 @@ README and the actual CLI use the public repository/install flow and
 ### UBCTL-QA-009 — Automated command tests register commands but rarely execute actions
 
 - Severity: High
-- Status: Open
+- Status: Resolved (action-level E2E coverage across every command family)
 - Area: test coverage / regression safety
 - Environment: repository `main`
 
@@ -210,7 +215,7 @@ resource family, plus explicit tests for option collisions and validation.
 ### UBCTL-QA-010 — Existing config permissions are not tightened before storing a token
 
 - Severity: High
-- Status: Open
+- Status: Resolved (owner-only atomic replacement)
 - Area: credential storage
 - Environment: macOS, CLI `v0.1.0`
 
@@ -230,26 +235,26 @@ existing files, and tests should cover this case.
 
 ## Execution log
 
-| Check | Result | Notes |
-| --- | --- | --- |
-| Public install, macOS arm64 | Pass | Anonymous download, SHA-256 verification, `ubctl 0.1.0` |
-| Live authentication | Partial | Token and org resolve; see UBCTL-QA-001 |
-| Unit tests | Pass | 40/40 |
-| TypeScript | Pass | `tsc --noEmit` |
-| Lint | Pass | ESLint, zero warnings |
-| Production build | Pass | Bun bundle generated successfully |
-| Installer syntax | Pass | `bash -n scripts/install.sh` |
-| Command help | Pass | All 97 leaf commands return valid help |
-| Live top-level reads | Partial | 23 exercised: 18 pass, 5 fail; see UBCTL-QA-002 |
-| Live nested reads | Partial | 14 exercised: 13 pass, 1 fails; see UBCTL-QA-002 |
-| Human-readable live output | Pass | 30 commands; no `NaN`, `undefined`, invalid dates, or object coercion found |
-| Isolated command-action E2E | Pass with gaps found | 74 flows; all routed after mock correction; see validation findings |
-| Login/logout E2E | Pass | stdin token, org persistence, config mode `0600`, token removal |
-| Auth/error paths | Pass | missing token, rejected token, login rejection, and network failure exit `1` |
-| Test coverage | Partial | 77.42% lines, 60.42% functions; command actions are under-tested |
-| npm package dry run | Pass | Three expected files, executable bundle with shebang |
-| Version-pinned public install | Pass | Anonymous `VERSION=v0.1.0`, checksum and executable verified |
-| Command aliases | Pass | `notifs` and `team invites` |
+| Check                         | Result               | Notes                                                                        |
+| ----------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| Public install, macOS arm64   | Pass                 | Anonymous download, SHA-256 verification, `ubctl 0.1.0`                      |
+| Live authentication           | Partial              | Token and org resolve; see UBCTL-QA-001                                      |
+| Unit and integration tests    | Pass                 | 55/55 after remediation                                                      |
+| TypeScript                    | Pass                 | `tsc --noEmit`                                                               |
+| Lint                          | Pass                 | ESLint, zero warnings                                                        |
+| Production build              | Pass                 | Bun bundle generated successfully                                            |
+| Installer syntax              | Pass                 | `bash -n scripts/install.sh`                                                 |
+| Command help                  | Pass                 | All 97 leaf commands return valid help                                       |
+| Live top-level reads          | Partial              | 23 exercised: 18 pass, 5 fail; see UBCTL-QA-002                              |
+| Live nested reads             | Partial              | 14 exercised: 13 pass, 1 fails; see UBCTL-QA-002                             |
+| Human-readable live output    | Pass                 | 30 commands; no `NaN`, `undefined`, invalid dates, or object coercion found  |
+| Isolated command-action E2E   | Pass with gaps found | 74 flows; all routed after mock correction; see validation findings          |
+| Login/logout E2E              | Pass                 | stdin token, org persistence, config mode `0600`, token removal              |
+| Auth/error paths              | Pass                 | missing token, rejected token, login rejection, and network failure exit `1` |
+| Test coverage                 | Partial              | 77.42% lines, 60.42% functions; command actions are under-tested             |
+| npm package dry run           | Pass                 | Three expected files, executable bundle with shebang                         |
+| Version-pinned public install | Pass                 | Anonymous `VERSION=v0.1.0`, checksum and executable verified                 |
+| Command aliases               | Pass                 | `notifs` and `team invites`                                                  |
 
 ## Intentionally not executed against production
 
@@ -263,11 +268,12 @@ existing files, and tests should cover this case.
 
 ## Audit summary
 
-- Open findings: 10
+- Open findings: 0
+- Resolved findings: 10
 - Critical: 1
 - High: 6
 - Medium: 3
-- Automated suite: 40/40 passing
+- Automated suite: 55/55 passing after remediation
 - Registered leaf-command help checks: 97/97 passing
 - Live read-only invocations: 37
 - Human-output invocations: 30

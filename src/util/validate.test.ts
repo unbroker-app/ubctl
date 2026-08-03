@@ -1,10 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  githubRepositoryUrl,
-  positiveInteger,
-  positiveNumber,
-} from "./validate";
+import { repositoryUrl, positiveInteger, positiveNumber } from "./validate";
 
 test("positiveInteger validates and bounds integers", () => {
   assert.equal(positiveInteger("3", "nodes", 9), 3);
@@ -12,16 +8,24 @@ test("positiveInteger validates and bounds integers", () => {
     assert.throws(() => positiveInteger(value, "nodes", 9));
 });
 
-test("positiveNumber rejects non-finite and non-positive values", () => {
+test("positiveNumber accepts plain decimals and rejects alternate syntax", () => {
   assert.equal(positiveNumber("1.5", "price"), 1.5);
-  for (const value of ["0", "-1", "abc", "Infinity"])
+  for (const value of ["0", "-1", "abc", "Infinity", "0x10", "1e3", " 1 "])
     assert.throws(() => positiveNumber(value, "price"));
 });
 
-test("githubRepositoryUrl only accepts HTTPS owner/repo URLs", () => {
+test("repositoryUrl accepts and normalizes supported HTTPS owner/repo URLs", () => {
   assert.equal(
-    githubRepositoryUrl("https://github.com/unbroker-app/ubctl"),
+    repositoryUrl("https://github.com/unbroker-app/ubctl.git"),
     "https://github.com/unbroker-app/ubctl",
+  );
+  assert.equal(
+    repositoryUrl("https://gitlab.com/acme/app"),
+    "https://gitlab.com/acme/app",
+  );
+  assert.equal(
+    repositoryUrl("https://bitbucket.org/acme/app"),
+    "https://bitbucket.org/acme/app",
   );
   for (const value of [
     "not-a-url",
@@ -29,6 +33,9 @@ test("githubRepositoryUrl only accepts HTTPS owner/repo URLs", () => {
     "https://example.com/a/b",
     "https://github.com/a",
     "https://github.com/a/b/issues",
+    "https://user:pass@github.com/a/b",
+    "https://github.com/a/b?token=secret",
+    "https://github.com/a/b#fragment",
   ])
-    assert.throws(() => githubRepositoryUrl(value));
+    assert.throws(() => repositoryUrl(value));
 });
