@@ -30,18 +30,17 @@ browser (self-contained, no build needed).
 
 ## Install
 
-ubctl ships as a scoped npm package on **GitHub Packages** and as standalone
-binaries on each GitHub Release. Both live in this **private** repo, so you need
-read access (a `gh` login, or a `GITHUB_TOKEN` that can read `unbroker-app/ubctl`).
+ubctl ships as standalone binaries on each public GitHub Release and as a
+scoped npm package on **GitHub Packages**. The standalone installer requires no
+GitHub account or access token.
 
 **Standalone binary** (Linux / macOS, x64 / arm64) — no Node required:
 
 ```bash
-# requires the GitHub CLI (gh auth login) or a GITHUB_TOKEN in the environment
 curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash
 ```
 
-**npm** (GitHub Packages):
+**npm** (GitHub Packages; GitHub authentication is still required):
 
 ```bash
 # one-time: point the @unbroker-app scope at GitHub Packages and authenticate

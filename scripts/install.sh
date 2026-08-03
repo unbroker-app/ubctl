@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 # Install the ubctl CLI from GitHub Releases.
 #
-# The repo is private, so downloading release assets needs authentication:
-#   - easiest: have the GitHub CLI installed and logged in (`gh auth login`), or
-#   - export GITHUB_TOKEN with a token that can read unbroker-app/ubctl.
-#
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash
 #   VERSION=v0.2.0 INSTALL_DIR=~/.local/bin bash install.sh
@@ -31,32 +27,22 @@ asset="ubctl-${os}-${arch}"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-dest="$tmp/ubctl"
+dest="$tmp/$asset"
 
 echo "ubctl: installing $asset ($VERSION)…"
 
-# --- download ----------------------------------------------------------------
-if command -v gh >/dev/null 2>&1; then
-  args=(release download)
-  [ "$VERSION" != "latest" ] && args+=("$VERSION")
-  gh "${args[@]}" --repo "$REPO" --pattern "$asset" --output "$dest" --clobber
+# --- download and verify -----------------------------------------------------
+if [ "$VERSION" = "latest" ]; then
+  base_url="https://github.com/$REPO/releases/latest/download"
 else
-  : "${GITHUB_TOKEN:?gh CLI not found — set GITHUB_TOKEN to a token that can read $REPO}"
-  api="https://api.github.com/repos/$REPO/releases"
-  if [ "$VERSION" = "latest" ]; then
-    api="$api/latest"
-  else
-    api="$api/tags/$VERSION"
-  fi
-  asset_id="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
-    -H "Accept: application/vnd.github+json" "$api" \
-    | grep -B3 "\"name\": \"$asset\"" | grep '"id":' | head -1 \
-    | tr -dc '0-9')"
-  [ -n "$asset_id" ] || { echo "ubctl: asset $asset not found in $VERSION" >&2; exit 1; }
-  curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
-    -H "Accept: application/octet-stream" \
-    "https://api.github.com/repos/$REPO/releases/assets/$asset_id" -o "$dest"
+  base_url="https://github.com/$REPO/releases/download/$VERSION"
 fi
+
+curl -fsSL "$base_url/$asset" -o "$dest"
+curl -fsSL "$base_url/SHA256SUMS" -o "$tmp/SHA256SUMS"
+expected="$(grep "  $asset\$" "$tmp/SHA256SUMS")"
+[ -n "$expected" ] || { echo "ubctl: checksum for $asset not found" >&2; exit 1; }
+(cd "$tmp" && printf '%s\n' "$expected" | shasum -a 256 -c -)
 
 chmod +x "$dest"
 
