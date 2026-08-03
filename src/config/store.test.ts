@@ -6,6 +6,8 @@ import {
   statSync,
   existsSync,
   writeFileSync,
+  mkdirSync,
+  chmodSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,6 +59,25 @@ test("the config file is written 0600 (owner-only)", () => {
   saveConfig({ token: "secret" });
   const mode = statSync(configPath()).mode & 0o777;
   assert.equal(mode, 0o600);
+});
+
+test("saveConfig tightens an existing permissive file and directory", () => {
+  mkdirSync(configDir(), { recursive: true, mode: 0o755 });
+  writeFileSync(configPath(), "{}\n", { mode: 0o644 });
+  chmodSync(configDir(), 0o755);
+  chmodSync(configPath(), 0o644);
+
+  saveConfig({ token: "secret" });
+
+  assert.equal(statSync(configDir()).mode & 0o777, 0o700);
+  assert.equal(statSync(configPath()).mode & 0o777, 0o600);
+});
+
+test("clearConfigKey also preserves owner-only permissions", () => {
+  saveConfig({ token: "secret", org: "org_1" });
+  chmodSync(configPath(), 0o644);
+  clearConfigKey("token");
+  assert.equal(statSync(configPath()).mode & 0o777, 0o600);
 });
 
 test("clearConfigKey drops one key and keeps the rest", () => {

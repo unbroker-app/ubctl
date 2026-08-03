@@ -78,7 +78,9 @@ test("a 204 with no body resolves to undefined", async () => {
 test("maps the API error envelope onto ApiError", async () => {
   const { fetch } = stub(
     new Response(
-      JSON.stringify({ error: { code: "not_found", message: "No such token" } }),
+      JSON.stringify({
+        error: { code: "not_found", message: "No such token" },
+      }),
       { status: 404 },
     ),
   );
@@ -93,6 +95,43 @@ test("maps the API error envelope onto ApiError", async () => {
       return true;
     },
   );
+});
+
+test("preserves Fastify's top-level error message", async () => {
+  const fetchFn = async () =>
+    new Response(
+      JSON.stringify({
+        message: "Route GET:/spaces not found",
+        error: "Not Found",
+        statusCode: 404,
+      }),
+      { status: 404, statusText: "Not Found" },
+    );
+  const client = new ApiClient({ apiUrl: "https://api.test", fetchFn });
+
+  await assert.rejects(client.get("/spaces"), (err: unknown) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.status, 404);
+    assert.equal(err.code, "http_404");
+    assert.equal(err.message, "Route GET:/spaces not found");
+    return true;
+  });
+});
+
+test("supports a top-level API code and string error fallback", async () => {
+  const coded = new ApiClient({
+    apiUrl: "https://api.test",
+    fetchFn: async () =>
+      new Response(JSON.stringify({ code: "gone", error: "No longer here" }), {
+        status: 410,
+      }),
+  });
+  await assert.rejects(coded.get("/old"), (err: unknown) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.code, "gone");
+    assert.equal(err.message, "No longer here");
+    return true;
+  });
 });
 
 test("a transport failure becomes a network_error ApiError", async () => {

@@ -23,12 +23,31 @@ export function whoamiCommand(): Command {
         throw err;
       }
 
+      const legacyTokenIdentity =
+        res.account.uuid === "demo" && ctx.token?.startsWith("ub_live_");
+      const account = legacyTokenIdentity
+        ? {
+            ...res.account,
+            uuid: `token:${res.account.team.uuid}`,
+            name: "Organization API token",
+            email: "",
+            identityType: "api_token" as const,
+          }
+        : res.account;
+
       if (ctx.json) {
-        printJson({ ...res.account, apiUrl: ctx.apiUrl });
+        printJson({ ...account, apiUrl: ctx.apiUrl });
         return;
       }
-      const { account } = res;
-      print(`Account: ${account.name} <${account.email}>`);
+      if (account.identityType === "api_token") {
+        print(
+          account.tokenName
+            ? `Identity: API token "${account.tokenName}"`
+            : "Identity: Organization API token",
+        );
+      } else {
+        print(`Account: ${account.name} <${account.email}>`);
+      }
       print(`Org:     ${account.team.name} (${account.team.uuid})`);
       print(`API:     ${ctx.apiUrl}`);
     });

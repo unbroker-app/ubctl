@@ -25,7 +25,10 @@ export class ApiError extends Error {
 }
 
 interface ErrorEnvelope {
-  error?: { code?: string; message?: string };
+  error?: { code?: string; message?: string } | string;
+  code?: string;
+  message?: string;
+  statusCode?: number;
 }
 
 export class ApiClient {
@@ -82,10 +85,18 @@ export class ApiClient {
 
     if (!res.ok) {
       const env = (data ?? {}) as ErrorEnvelope;
+      const nested =
+        typeof env.error === "object" && env.error !== null
+          ? env.error
+          : undefined;
       throw new ApiError(
         res.status,
-        env.error?.code ?? `http_${res.status}`,
-        env.error?.message ?? res.statusText ?? `request failed (${res.status})`,
+        nested?.code ?? env.code ?? `http_${env.statusCode ?? res.status}`,
+        nested?.message ??
+          env.message ??
+          (typeof env.error === "string" ? env.error : undefined) ??
+          res.statusText ??
+          `request failed (${res.status})`,
       );
     }
 

@@ -87,12 +87,13 @@ test("apps services adds update/security; projects add env/manifest/duplicate/de
   }
 });
 
-test("orgs keeps read subcommands and account adds bandwidth/alerts", () => {
+test("orgs exposes implemented reads and account adds bandwidth/alerts", () => {
   const program = buildProgram();
   const orgs = find("orgs", program)!;
-  for (const c of ["get", "billing", "connection"]) {
+  for (const c of ["get", "billing"]) {
     assert.ok(find(c, orgs), `orgs ${c} should exist`);
   }
+  assert.equal(find("connection", orgs), undefined);
   const account = find("account", program)!;
   for (const c of ["usage", "invoices", "activity", "bandwidth", "alerts"]) {
     assert.ok(find(c, account), `account ${c} should exist`);

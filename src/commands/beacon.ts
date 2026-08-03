@@ -11,6 +11,7 @@ import type {
 import { authed, withJson } from "./helpers";
 import { print, printJson, printTable } from "../util/output";
 import { age } from "../util/format";
+import { CliError } from "../util/errors";
 
 /** `ubctl beacon …` — manage Beacon realtime pub/sub projects. */
 export function beaconCommand(): Command {
@@ -237,6 +238,11 @@ function settingsCommand(): Command {
           cmd: Command,
         ) => {
           const { ctx, client } = authed(cmd);
+          if (opts.allowAnonymous && opts.disallowAnonymous) {
+            throw new CliError(
+              "--allow-anonymous and --disallow-anonymous are mutually exclusive",
+            );
+          }
           // PATCH expects the full object, so read current settings and override
           // only the flags the user passed.
           const { settings: cur } = await client.get<BeaconSettingsResponse>(

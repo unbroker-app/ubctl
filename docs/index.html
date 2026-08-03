@@ -347,14 +347,12 @@
         <h2>Paso 0</h2>
         <h3 class="title">Instalar</h3>
         <p>
-          El repo es privado, así que necesitas acceso de lectura (un login de
-          <code class="inline">gh</code> o un <code class="inline">GITHUB_TOKEN</code>
-          que pueda leer <code class="inline">unbroker-app/ubctl</code>).
+          El instalador descarga un binario público verificado desde GitHub
+          Releases. No requiere una cuenta ni un token de GitHub.
         </p>
 
         <h4>Binario (Linux / macOS · x64 / arm64)</h4>
-        <pre><span class="c"># requiere gh autenticado, o GITHUB_TOKEN exportado</span>
-curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre>
+        <pre>curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre>
 
         <h4>npm (GitHub Packages)</h4>
         <pre><span class="c"># una sola vez: apunta el scope a GitHub Packages y autentícate</span>
@@ -546,7 +544,8 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <h3 class="title">Recursos cloud</h3>
         <p>
           Además de las apps (PaaS), <code class="inline">ubctl</code> maneja la
-          capa de recursos: máquinas, bases de datos, Kubernetes y red.
+          capa de recursos implementada por el control plane: máquinas y bases
+          de datos administradas.
         </p>
         <table>
           <thead>
@@ -564,22 +563,8 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
               <td><code>ubctl db</code></td>
               <td>ls · get · connection (credenciales) · rm</td>
             </tr>
-            <tr>
-              <td><code>ubctl k8s</code></td>
-              <td>ls · get · kubeconfig · rm</td>
-            </tr>
-            <tr>
-              <td><code>ubctl firewalls</code></td>
-              <td>ls · get · rm</td>
-            </tr>
-            <tr>
-              <td><code>ubctl lb · vpcs · spaces</code></td>
-              <td>ls (load balancers, VPCs, buckets)</td>
-            </tr>
           </tbody>
         </table>
-        <pre><span class="c"># el kubeconfig sale como YAML — redirígelo a un archivo</span>
-<span class="p">ubctl</span> k8s kubeconfig <span class="o">&lt;id&gt;</span> &gt; kubeconfig.yaml</pre>
       </div>
     </section>
 
@@ -624,7 +609,7 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           (<code class="inline">UBCTL_*</code>) <span class="arrow">→</span>
           archivo <code class="inline">~/.config/ubctl/config.json</code>
           <span class="arrow">→</span> default
-          (<code class="inline">https://dev.api.cloud.unbroker.app</code>).
+          (<code class="inline">https://api.unbroker.cloud</code>).
         </div>
       </div>
     </section>
@@ -633,7 +618,7 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
       <div class="wrap">
         ubctl · CLI oficial de Unbroker Cloud ·
         <a href="https://github.com/unbroker-app/ubctl">unbroker-app/ubctl</a>
-        · Privado — todos los derechos reservados.
+        · Repositorio público — todos los derechos reservados.
       </div>
     </footer>
   </body>

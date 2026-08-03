@@ -6,7 +6,10 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
+  chmodSync,
+  renameSync,
 } from "node:fs";
+import { randomUUID } from "node:crypto";
 
 /** Persisted CLI configuration. All fields optional — a fresh install has none. */
 export interface StoredConfig {
@@ -24,7 +27,10 @@ export interface StoredConfig {
  */
 export function configDir(): string {
   const base = process.env.XDG_CONFIG_HOME?.trim();
-  return join(base && base.length > 0 ? base : join(homedir(), ".config"), "ubctl");
+  return join(
+    base && base.length > 0 ? base : join(homedir(), ".config"),
+    "ubctl",
+  );
 }
 
 export function configPath(): string {
@@ -52,10 +58,7 @@ export function loadConfig(): StoredConfig {
  */
 export function saveConfig(patch: StoredConfig): StoredConfig {
   const next = { ...loadConfig(), ...patch };
-  mkdirSync(configDir(), { recursive: true, mode: 0o700 });
-  writeFileSync(configPath(), JSON.stringify(next, null, 2) + "\n", {
-    mode: 0o600,
-  });
+  writeConfig(next);
   return next;
 }
 
@@ -64,9 +67,7 @@ export function clearConfigKey(key: keyof StoredConfig): StoredConfig {
   const next = { ...loadConfig() };
   delete next[key];
   if (existsSync(configPath())) {
-    writeFileSync(configPath(), JSON.stringify(next, null, 2) + "\n", {
-      mode: 0o600,
-    });
+    writeConfig(next);
   }
   return next;
 }
@@ -74,4 +75,23 @@ export function clearConfigKey(key: keyof StoredConfig): StoredConfig {
 /** Delete the whole config file (used by tests; not wired to a command). */
 export function deleteConfig(): void {
   rmSync(configPath(), { force: true });
+}
+
+function writeConfig(config: StoredConfig): void {
+  mkdirSync(configDir(), { recursive: true, mode: 0o700 });
+  chmodSync(configDir(), 0o700);
+  const target = configPath();
+  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    // A new owner-only file avoids ever exposing the bearer token through the
+    // permissions of a pre-existing config. Same-directory rename is atomic.
+    writeFileSync(temporary, JSON.stringify(config, null, 2) + "\n", {
+      mode: 0o600,
+      flag: "wx",
+    });
+    renameSync(temporary, target);
+    chmodSync(target, 0o600);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
 }

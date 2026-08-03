@@ -1,23 +1,8 @@
 import type { Command } from "commander";
 import { dropletsCommand } from "./compute";
 import { databasesCommand } from "./databases";
-import { kubernetesCommand } from "./kubernetes";
-import {
-  firewallsCommand,
-  loadBalancersCommand,
-  vpcsCommand,
-} from "./networking";
-import { spacesCommand } from "./spaces";
 
-/** The DigitalOcean-reseller resource commands (top-level, not under a group). */
+/** Cloud resource commands backed by routes implemented by the control plane. */
 export function resellerCommands(): Command[] {
-  return [
-    dropletsCommand(),
-    databasesCommand(),
-    kubernetesCommand(),
-    firewallsCommand(),
-    loadBalancersCommand(),
-    vpcsCommand(),
-    spacesCommand(),
-  ];
+  return [dropletsCommand(), databasesCommand()];
 }

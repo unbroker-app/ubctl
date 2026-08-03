@@ -4,6 +4,8 @@ export interface Profile {
   id: string;
   name: string;
   email: string;
+  identityType?: "user" | "api_token";
+  tokenName?: string;
 }
 
 export interface ProfileResponse {
@@ -17,6 +19,8 @@ export interface Account {
   name: string;
   status: string;
   team: { name: string; uuid: string };
+  identityType?: "user" | "api_token";
+  tokenName?: string;
 }
 
 export interface AccountResponse {
@@ -26,9 +30,11 @@ export interface AccountResponse {
 /* ----- Apps / PaaS ----- */
 
 export type Framework =
+  | "nixpacks"
   | "next"
   | "astro"
   | "node"
+  | "worker"
   | "react"
   | "vue"
   | "vite"
@@ -238,11 +244,6 @@ export interface Billing {
 }
 export interface BillingResponse {
   billing: Billing;
-}
-
-/** Whether the org has a cloud provider (DigitalOcean) connected. */
-export interface ConnectionStatusResponse {
-  connected: boolean;
 }
 
 export interface BandwidthPoint {
