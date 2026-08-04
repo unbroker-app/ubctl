@@ -33,9 +33,8 @@ export function projectsCommand(): Command {
       .description("List projects")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { projects: rows } = await client.get<ProjectsResponse>(
-          "/apps/projects",
-        );
+        const { projects: rows } =
+          await client.get<ProjectsResponse>("/apps/projects");
         if (ctx.json) return printJson(rows);
         printTable(
           rows.map((p) => ({ ...p, created: age(p.createdAt) })),
@@ -78,7 +77,9 @@ export function projectsCommand(): Command {
           { name: opts.name },
         );
         if (ctx.json) return printJson(project);
-        print(`Created project ${project.name} (${project.id}), slug ${project.slug}`);
+        print(
+          `Created project ${project.name} (${project.id}), slug ${project.slug}`,
+        );
       }),
   );
 
@@ -109,7 +110,9 @@ export function projectsCommand(): Command {
         );
         if (ctx.json) return printJson(res);
         const count = res.order.reduce((n, level) => n + level.length, 0);
-        print(`Queued ${count} service(s) across ${res.order.length} level(s).`);
+        print(
+          `Queued ${count} service(s) across ${res.order.length} level(s).`,
+        );
         res.order.forEach((level, i) =>
           print(`  level ${i + 1}: ${level.map((s) => s.slug).join(", ")}`),
         );
@@ -136,27 +139,29 @@ export function projectsCommand(): Command {
       .description("Create a project from a manifest file")
       .requiredOption("--file <path>", "path to a manifest JSON file")
       .option("--name <name>", "override the project name")
-      .action(
-        async (opts: { file: string; name?: string }, cmd: Command) => {
-          const { ctx, client } = authed(cmd);
-          let manifest: unknown;
-          try {
-            manifest = JSON.parse(readFileSync(opts.file, "utf8"));
-          } catch (err) {
-            const detail = err instanceof Error ? err.message : String(err);
-            throw new ApiError(0, "bad_manifest", `cannot read ${opts.file}: ${detail}`);
-          }
-          const body: Record<string, unknown> = { manifest };
-          if (opts.name) body.name = opts.name;
-          const res = await client.post<ImportResponse>(
-            "/apps/projects/import",
-            body,
+      .action(async (opts: { file: string; name?: string }, cmd: Command) => {
+        const { ctx, client } = authed(cmd);
+        let manifest: unknown;
+        try {
+          manifest = JSON.parse(readFileSync(opts.file, "utf8"));
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          throw new ApiError(
+            0,
+            "bad_manifest",
+            `cannot read ${opts.file}: ${detail}`,
           );
-          if (ctx.json) return printJson(res);
-          print(`Imported project ${res.project.name} (${res.project.id})`);
-          print(`Services: ${res.services.length}`);
-        },
-      ),
+        }
+        const body: Record<string, unknown> = { manifest };
+        if (opts.name) body.name = opts.name;
+        const res = await client.post<ImportResponse>(
+          "/apps/projects/import",
+          body,
+        );
+        if (ctx.json) return printJson(res);
+        print(`Imported project ${res.project.name} (${res.project.id})`);
+        print(`Services: ${res.services.length}`);
+      }),
   );
 
   withJson(
@@ -241,7 +246,9 @@ function projectEnvCommand(): Command {
             throw err;
           }
         }
-        print(`Set ${key} on project ${projectId}. Redeploy services to apply.`);
+        print(
+          `Set ${key} on project ${projectId}. Redeploy services to apply.`,
+        );
       },
     );
 
@@ -252,7 +259,9 @@ function projectEnvCommand(): Command {
       async (projectId: string, key: string, _opts: unknown, cmd: Command) => {
         const { client } = authed(cmd);
         await client.delete(`/apps/projects/${projectId}/env/${key}`);
-        print(`Removed ${key} from project ${projectId}. Redeploy services to apply.`);
+        print(
+          `Removed ${key} from project ${projectId}. Redeploy services to apply.`,
+        );
       },
     );
 

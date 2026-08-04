@@ -19,6 +19,9 @@ export interface StoredConfig {
   token?: string;
   /** Default organization id (X-Org-Id) for session-scoped calls. */
   org?: string;
+  /** Named authentication contexts; secrets remain inside this same 0600 file. */
+  contexts?: Record<string, { apiUrl?: string; token?: string; org?: string }>;
+  currentContext?: string;
 }
 
 /**
@@ -58,6 +61,16 @@ export function loadConfig(): StoredConfig {
  */
 export function saveConfig(patch: StoredConfig): StoredConfig {
   const next = { ...loadConfig(), ...patch };
+  if (next.currentContext && next.contexts) {
+    const current = { ...(next.contexts[next.currentContext] ?? {}) };
+    for (const key of ["apiUrl", "token", "org"] as const) {
+      if (key in patch) {
+        if (patch[key] === undefined) delete current[key];
+        else current[key] = patch[key];
+      }
+    }
+    next.contexts = { ...next.contexts, [next.currentContext]: current };
+  }
   writeConfig(next);
   return next;
 }
@@ -66,9 +79,56 @@ export function saveConfig(patch: StoredConfig): StoredConfig {
 export function clearConfigKey(key: keyof StoredConfig): StoredConfig {
   const next = { ...loadConfig() };
   delete next[key];
+  if (
+    (key === "apiUrl" || key === "token" || key === "org") &&
+    next.currentContext &&
+    next.contexts?.[next.currentContext]
+  ) {
+    const current = { ...next.contexts[next.currentContext] };
+    delete current[key];
+    next.contexts = { ...next.contexts, [next.currentContext]: current };
+  }
   if (existsSync(configPath())) {
     writeConfig(next);
   }
+  return next;
+}
+
+export function saveContext(name: string): StoredConfig {
+  const config = loadConfig();
+  const context = {
+    apiUrl: config.apiUrl,
+    token: config.token,
+    org: config.org,
+  };
+  const next = {
+    ...config,
+    contexts: { ...config.contexts, [name]: context },
+    currentContext: name,
+  };
+  writeConfig(next);
+  return next;
+}
+
+export function switchContext(name: string): StoredConfig {
+  const config = loadConfig();
+  const selected = config.contexts?.[name];
+  if (!selected) throw new Error(`unknown context "${name}"`);
+  const next = { ...config, ...selected, currentContext: name };
+  for (const key of ["apiUrl", "token", "org"] as const)
+    if (!(key in selected)) delete next[key];
+  writeConfig(next);
+  return next;
+}
+
+export function removeContext(name: string): StoredConfig {
+  const config = loadConfig();
+  if (!config.contexts?.[name]) throw new Error(`unknown context "${name}"`);
+  const contexts = { ...config.contexts };
+  delete contexts[name];
+  const next = { ...config, contexts };
+  if (next.currentContext === name) delete next.currentContext;
+  writeConfig(next);
   return next;
 }
 

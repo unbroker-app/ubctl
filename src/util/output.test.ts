@@ -20,10 +20,13 @@ function capture(fn: () => void): string {
 
 test("printTable renders an uppercase header and rows", () => {
   const out = capture(() =>
-    printTable([{ id: "p1", name: "demo" }], [
-      { key: "id", header: "id" },
-      { key: "name", header: "name" },
-    ]),
+    printTable(
+      [{ id: "p1", name: "demo" }],
+      [
+        { key: "id", header: "id" },
+        { key: "name", header: "name" },
+      ],
+    ),
   );
   const lines = out.trimEnd().split("\n");
   assert.equal(lines[0], "ID  NAME");
@@ -37,10 +40,13 @@ test("printTable prints (none) for an empty list", () => {
 
 test("missing values render as '-'", () => {
   const out = capture(() =>
-    printTable([{ a: "x", b: "" }], [
-      { key: "a", header: "a" },
-      { key: "b", header: "b" },
-    ]),
+    printTable(
+      [{ a: "x", b: "" }],
+      [
+        { key: "a", header: "a" },
+        { key: "b", header: "b" },
+      ],
+    ),
   );
   assert.match(out, /x +-/);
 });

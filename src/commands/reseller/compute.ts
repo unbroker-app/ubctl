@@ -15,7 +15,8 @@ export function dropletsCommand(): Command {
       .description("List droplets")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { droplets: rows } = await client.get<DropletsResponse>("/droplets");
+        const { droplets: rows } =
+          await client.get<DropletsResponse>("/droplets");
         if (ctx.json) return printJson(rows);
         printTable(rows, [
           { key: "id", header: "id" },
@@ -34,13 +35,17 @@ export function dropletsCommand(): Command {
       .description("Show a droplet")
       .action(async (id: string, _opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { droplet } = await client.get<DropletResponse>(`/droplets/${id}`);
+        const { droplet } = await client.get<DropletResponse>(
+          `/droplets/${id}`,
+        );
         if (ctx.json) return printJson(droplet);
         print(`id:     ${droplet.id}`);
         print(`name:   ${droplet.name}`);
         print(`status: ${droplet.status}`);
         print(`region: ${droplet.region}`);
-        print(`size:   ${droplet.size} (${droplet.vcpus} vCPU, ${droplet.memoryGb}GB RAM, ${droplet.diskGb}GB disk)`);
+        print(
+          `size:   ${droplet.size} (${droplet.vcpus} vCPU, ${droplet.memoryGb}GB RAM, ${droplet.diskGb}GB disk)`,
+        );
         print(`image:  ${droplet.image}`);
         print(`ipv4:   ${droplet.ipv4}`);
       }),

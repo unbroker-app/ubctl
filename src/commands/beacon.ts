@@ -25,9 +25,8 @@ export function beaconCommand(): Command {
       .description("List beacon projects")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { projects } = await client.get<BeaconProjectsResponse>(
-          "/beacon/projects",
-        );
+        const { projects } =
+          await client.get<BeaconProjectsResponse>("/beacon/projects");
         if (ctx.json) return printJson(projects);
         printTable(
           projects.map((p) => ({ ...p, created: age(p.createdAt) })),
@@ -88,7 +87,9 @@ export function beaconCommand(): Command {
   for (const state of ["enable", "disable"] as const) {
     beacon
       .command(`${state} <id>`)
-      .description(`${state === "enable" ? "Activate" : "Deactivate"} a beacon project`)
+      .description(
+        `${state === "enable" ? "Activate" : "Deactivate"} a beacon project`,
+      )
       .action(async (id: string, _opts: unknown, cmd: Command) => {
         const { client } = authed(cmd);
         const { project } = await client.post<BeaconProjectResponse>(
@@ -122,7 +123,9 @@ export function beaconCommand(): Command {
         print(`month:       ${usage.month}${usage.live ? " (live)" : ""}`);
         print(`messages:    ${usage.messages}`);
         print(`data:        ${usage.gigabytes} GB (${usage.bytes} bytes)`);
-        print(`connections: ${usage.currentConnections} now, ${usage.peakConnections} peak`);
+        print(
+          `connections: ${usage.currentConnections} now, ${usage.peakConnections} peak`,
+        );
         print(`est. cost:   $${usage.estimatedCost.toFixed(2)}`);
       }),
   );
@@ -222,7 +225,12 @@ function settingsCommand(): Command {
       .command("set <id>")
       .description("Update settings (only the provided fields change)")
       .option("--origin <origin>", "allowed origin (repeatable)", collect, [])
-      .option("--anon-subscribe <pattern>", "anonymous channel pattern (repeatable)", collect, [])
+      .option(
+        "--anon-subscribe <pattern>",
+        "anonymous channel pattern (repeatable)",
+        collect,
+        [],
+      )
       .option("--allow-anonymous", "allow keyless (anonymous) access")
       .option("--disallow-anonymous", "disallow keyless access")
       .action(
@@ -249,7 +257,9 @@ function settingsCommand(): Command {
             `/beacon/projects/${id}/settings`,
           );
           const body = {
-            allowedOrigins: opts.origin.length ? opts.origin : cur.allowedOrigins,
+            allowedOrigins: opts.origin.length
+              ? opts.origin
+              : cur.allowedOrigins,
             anonymousSubscribe: opts.anonSubscribe.length
               ? opts.anonSubscribe
               : cur.anonymousSubscribe,

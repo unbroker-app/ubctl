@@ -66,7 +66,11 @@ test("flags override env and file", () => {
   saveConfig({ apiUrl: "https://file.api", org: "f" });
   process.env[ENV.apiUrl] = "https://env.api";
   process.env[ENV.org] = "e";
-  const ctx = resolveContext({ apiUrl: "https://flag.api", org: "flag", json: true });
+  const ctx = resolveContext({
+    apiUrl: "https://flag.api",
+    org: "flag",
+    json: true,
+  });
   assert.equal(ctx.apiUrl, "https://flag.api");
   assert.equal(ctx.org, "flag");
   assert.equal(ctx.json, true);
@@ -87,7 +91,8 @@ test("the built-in default API URL is https on the unbroker.cloud domain", () =>
   const url = new URL(DEFAULT_API_URL);
   assert.equal(url.protocol, "https:");
   assert.ok(
-    url.hostname === "unbroker.cloud" || url.hostname.endsWith(".unbroker.cloud"),
+    url.hostname === "unbroker.cloud" ||
+      url.hostname.endsWith(".unbroker.cloud"),
     `DEFAULT_API_URL must be on unbroker.cloud (the platform domain), got ${url.hostname}. ` +
       "unbroker.app is mail-only and has no web records.",
   );

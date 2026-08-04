@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ApiClient, ApiError } from "./client";
+import { VERSION } from "../version";
 
 interface Capture {
   url: string;
@@ -46,6 +47,62 @@ test("GET sends auth headers and parses the JSON body", async () => {
   assert.equal(call.method, "GET");
   assert.equal(call.headers.get("x-api-key"), "ub_live_abc");
   assert.equal(call.headers.get("x-org-id"), "acme");
+  assert.equal(call.headers.get("x-ubctl-version"), VERSION);
+});
+
+test("retries retryable HTTP responses and then returns success", async () => {
+  let calls = 0;
+  const fetchFn = async (): Promise<Response> => {
+    calls++;
+    if (calls < 3)
+      return new Response(JSON.stringify({ error: "temporary" }), {
+        status: 503,
+        headers: { "retry-after": "0.001" },
+      });
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  };
+  const client = new ApiClient({
+    apiUrl: "https://api.test",
+    fetchFn: fetchFn as typeof fetch,
+    retries: 2,
+  });
+
+  assert.deepEqual(await client.get("/health"), { ok: true });
+  assert.equal(calls, 3);
+});
+
+test("does not retry non-retryable HTTP errors", async () => {
+  let calls = 0;
+  const client = new ApiClient({
+    apiUrl: "https://api.test",
+    retries: 3,
+    fetchFn: (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: "bad request" }), {
+        status: 400,
+      });
+    }) as typeof fetch,
+  });
+
+  await assert.rejects(() => client.get("/bad"), ApiError);
+  assert.equal(calls, 1);
+});
+
+test("never retries a mutation after a server error", async () => {
+  let calls = 0;
+  const client = new ApiClient({
+    apiUrl: "https://api.test",
+    retries: 3,
+    fetchFn: (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: "uncertain commit" }), {
+        status: 503,
+      });
+    }) as typeof fetch,
+  });
+
+  await assert.rejects(() => client.post("/apps/projects", { name: "one" }));
+  assert.equal(calls, 1);
 });
 
 test("POST serialises the body and sets Content-Type", async () => {

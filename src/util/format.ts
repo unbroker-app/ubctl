@@ -15,7 +15,10 @@ export function age(epochMs: number | null | undefined): string {
 }
 
 /** Elapsed time between two epoch-ms stamps, e.g. "42s". null end → "-". */
-export function duration(start: number, end: number | null | undefined): string {
+export function duration(
+  start: number,
+  end: number | null | undefined,
+): string {
   if (!end) return "-";
   const secs = Math.max(0, Math.round((end - start) / 1000));
   if (secs < 60) return `${secs}s`;

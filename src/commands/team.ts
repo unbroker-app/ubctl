@@ -45,18 +45,16 @@ export function teamCommand(): Command {
       .addOption(
         new Option("--role <role>", "role").choices(ROLES).default("Member"),
       )
-      .action(
-        async (email: string, opts: { role: string }, cmd: Command) => {
-          const { ctx, client } = authed(cmd);
-          const { invitation } = await client.post<InvitationResponse>("/team", {
-            email,
-            role: opts.role,
-          });
-          if (ctx.json) return printJson(invitation);
-          print(`Invited ${invitation.email} as ${invitation.role}`);
-          print("They'll get an email with an accept link.");
-        },
-      ),
+      .action(async (email: string, opts: { role: string }, cmd: Command) => {
+        const { ctx, client } = authed(cmd);
+        const { invitation } = await client.post<InvitationResponse>("/team", {
+          email,
+          role: opts.role,
+        });
+        if (ctx.json) return printJson(invitation);
+        print(`Invited ${invitation.email} as ${invitation.role}`);
+        print("They'll get an email with an accept link.");
+      }),
   );
 
   team

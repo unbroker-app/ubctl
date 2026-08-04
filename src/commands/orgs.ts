@@ -21,9 +21,8 @@ export function orgsCommand(): Command {
       // Bare `ubctl orgs` lists — preserved from the original single command.
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { organizations } = await client.get<OrganizationsResponse>(
-          "/organizations",
-        );
+        const { organizations } =
+          await client.get<OrganizationsResponse>("/organizations");
         if (ctx.json) return printJson(organizations);
         printTable(organizations, [
           { key: "id", header: "id" },
