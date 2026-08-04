@@ -97,12 +97,17 @@ and timing; it never prints headers or bodies.
 ## Named contexts
 
 ```bash
-ubctl auth save personal
-ubctl auth save production
+ubctl login --context personal
+ubctl login --context production
 ubctl auth ls
 ubctl auth switch personal
 ubctl auth rm production
 ```
+
+Use `login --context <name>` when adding an account. A plain `login`
+reauthenticates the selected context and refuses to replace it with a token from
+a different organization. This prevents the previously selected account from
+being overwritten before it can be saved under a new name.
 
 Contexts live in the existing owner-only (`0600`) config file. Logging out also
 removes the active context's saved token, so switching cannot restore a token

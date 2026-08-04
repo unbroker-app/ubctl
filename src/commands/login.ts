@@ -2,16 +2,23 @@ import { Command } from "commander";
 import { resolveContext } from "../context";
 import { ApiClient, ApiError } from "../api/client";
 import type { ProfileResponse } from "../api/types";
-import { saveConfig, configPath } from "../config/store";
+import {
+  saveConfig,
+  saveContextCredentials,
+  configPath,
+  loadConfig,
+} from "../config/store";
 import { CliError } from "../util/errors";
 import { promptHidden, readStdin } from "../util/prompt";
 import { printJson, printPanel } from "../util/output";
+import { contextName } from "../util/validate";
 
 interface LoginOptions {
   token?: string;
   apiUrl?: string;
   org?: string;
   stdin?: boolean;
+  context?: string;
 }
 
 export function loginCommand(): Command {
@@ -20,17 +27,23 @@ export function loginCommand(): Command {
     .option("--token <token>", "API token (else prompted, or read from stdin)")
     .option("--api-url <url>", "API base URL to use and persist")
     .option("--org <id>", "default organization to persist")
+    .option("--context <name>", "save and select this named account context")
     .option("--stdin", "read the token from stdin (for scripts/CI)")
     .action(async (opts: LoginOptions, cmd: Command) => {
+      const targetContext = opts.context
+        ? contextName(opts.context)
+        : undefined;
       const global = (cmd.parent?.opts() ?? {}) as {
         apiUrl?: string;
         org?: string;
         json?: boolean;
       };
       // login-local flags win over the global ones, then env/file/default.
+      const explicitOrg = opts.org ?? global.org;
       const ctx = resolveContext({
         apiUrl: opts.apiUrl ?? global.apiUrl,
-        org: opts.org ?? global.org,
+        // Never inherit a previous account's org during authentication.
+        org: explicitOrg,
         json: global.json,
       });
 
@@ -49,14 +62,27 @@ export function loginCommand(): Command {
         throw err;
       }
 
-      saveConfig({
+      const orgId = explicitOrg ?? profile.orgId;
+      const credentials = {
         apiUrl: ctx.apiUrl,
         token,
-        // Persist the explicitly requested org, else the token's own org.
-        org: ctx.org ?? profile.orgId,
-      });
+        org: orgId,
+      };
+      if (targetContext) {
+        saveContextCredentials(targetContext, credentials);
+      } else {
+        const config = loadConfig();
+        const active = config.currentContext
+          ? config.contexts?.[config.currentContext]
+          : undefined;
+        if (active?.org && active.org !== profile.orgId) {
+          throw new CliError(
+            `this token belongs to ${profile.orgId}, but context ${config.currentContext} belongs to ${active.org}; use --context <name> to add the account without replacing it`,
+          );
+        }
+        saveConfig(credentials);
+      }
 
-      const orgId = ctx.org ?? profile.orgId;
       const identity = describeIdentity(profile);
       if (ctx.json) {
         printJson({
@@ -65,6 +91,7 @@ export function loginCommand(): Command {
           orgId,
           apiUrl: ctx.apiUrl,
           configPath: configPath(),
+          context: targetContext ?? loadConfig().currentContext,
         });
         return;
       }
@@ -77,6 +104,9 @@ export function loginCommand(): Command {
           { label: "Org", value: orgId },
           { label: "API", value: ctx.apiUrl },
           { label: "Config", value: configPath() },
+          ...(targetContext
+            ? [{ label: "Context", value: targetContext }]
+            : []),
         ],
         ["Next: ubctl apps projects ls", "Help: ubctl --help"],
       );

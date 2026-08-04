@@ -110,6 +110,22 @@ export function saveContext(name: string): StoredConfig {
   return next;
 }
 
+/** Save validated credentials directly into a named context and select it. */
+export function saveContextCredentials(
+  name: string,
+  context: { apiUrl: string; token: string; org: string },
+): StoredConfig {
+  const config = loadConfig();
+  const next = {
+    ...config,
+    ...context,
+    contexts: { ...config.contexts, [name]: context },
+    currentContext: name,
+  };
+  writeConfig(next);
+  return next;
+}
+
 export function switchContext(name: string): StoredConfig {
   const config = loadConfig();
   const selected = config.contexts?.[name];
