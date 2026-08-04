@@ -80,6 +80,31 @@ Every command (except `login`/`logout`) talks to the API with an **API token**.
    echo "$UB_TOKEN" | ubctl login --stdin   # pipe it (best for CI)
    ```
 
+   On success, interactive output includes a compact welcome panel with the
+   authenticated identity, active organization, API endpoint, config path and
+   useful next commands:
+
+   ```text
+   ╭──────────────────────────────────────────╮
+   │ UNBROKER CLOUD                           │
+   │ ✓ Authenticated                          │
+   ├──────────────────────────────────────────┤
+   │ Identity  API token "my-laptop"          │
+   │ Org       my-organization                │
+   │ API       https://api.unbroker.cloud     │
+   │ Config    ~/.config/ubctl/config.json    │
+   ├──────────────────────────────────────────┤
+   │ Next: ubctl apps projects ls             │
+   │ Help: ubctl --help                       │
+   ╰──────────────────────────────────────────╯
+   ```
+
+   Use global `--json` when another program consumes the login result:
+
+   ```bash
+   echo "$UB_TOKEN" | ubctl --json login --stdin
+   ```
+
 3. Confirm who you are and which organization is active:
 
    ```bash
