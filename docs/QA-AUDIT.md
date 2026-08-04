@@ -6,6 +6,32 @@ This document records the initial validation and the remediation completed on
 2026-08-03. Findings are resolved on the QA fix branches and covered by
 regression tests; merge and post-deploy verification are tracked in the PRs.
 
+## v0.4.0 operations validation
+
+Completed on 2026-08-04 after API PR
+[unbroker-cloud#577](https://github.com/unbroker-app/unbroker-cloud/pull/577)
+and CLI PR [ubctl#14](https://github.com/unbroker-app/ubctl/pull/14) were merged.
+
+- Backend: 715 tests, full workspace type check and lint passed locally; GitHub
+  CI type check, lint, and the eight-minute test job passed.
+- CLI: 63 tests, type check, lint, production bundle, PR CI, and `main` CI
+  passed.
+- Release: v0.4.0 package and four standalone binaries published; the installed
+  macOS arm64 binary matched the release SHA-256 checksum.
+- Production reads: diagnostics, current charges, monthly usage breakdown,
+  historical metrics and logs, DNS/TLS status, monitoring list, budgets, and
+  privacy-safe CLI usage aggregation passed.
+- Production mutations: one temporary metric policy, one temporary owned-domain
+  uptime policy, and one temporary budget were created, read/evaluated, deleted,
+  and checked absent. No service, deployment, database, VM, or other
+  infrastructure was created or changed.
+- Review fixes: private-address DNS protection for uptime checks, atomic
+  transition notifications across API replicas, authorization for manual
+  checks, and no automatic 5xx retries for CLI mutations.
+- Privacy verification: CLI usage contains only version, route template,
+  method, status class, counts, errors, and latency. Trace output was checked for
+  token/header leakage and contained none.
+
 ## Scope
 
 - Static checks, unit tests, type checking, linting, and production build.
@@ -239,7 +265,7 @@ existing files, and tests should cover this case.
 | ----------------------------- | -------------------- | ---------------------------------------------------------------------------- |
 | Public install, macOS arm64   | Pass                 | Anonymous download, SHA-256 verification, `ubctl 0.1.0`                      |
 | Live authentication           | Partial              | Token and org resolve; see UBCTL-QA-001                                      |
-| Unit and integration tests    | Pass                 | 55/55 after remediation                                                      |
+| Unit and integration tests    | Pass                 | 63/63 in CLI v0.4.0; 715/715 in the API                                      |
 | TypeScript                    | Pass                 | `tsc --noEmit`                                                               |
 | Lint                          | Pass                 | ESLint, zero warnings                                                        |
 | Production build              | Pass                 | Bun bundle generated successfully                                            |
