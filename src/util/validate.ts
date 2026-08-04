@@ -1,5 +1,13 @@
 import { InvalidArgumentError } from "commander";
 
+export function contextName(value: string): string {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(value))
+    throw new InvalidArgumentError(
+      "context name must contain only letters, numbers, dot, dash or underscore",
+    );
+  return value;
+}
+
 export function positiveInteger(
   value: string,
   label: string,

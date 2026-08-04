@@ -1,6 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { repositoryUrl, positiveInteger, positiveNumber } from "./validate";
+import {
+  contextName,
+  repositoryUrl,
+  positiveInteger,
+  positiveNumber,
+} from "./validate";
+
+test("contextName accepts safe names and rejects ambiguous input", () => {
+  for (const value of ["personal", "work-prod", "account_2", "org.example"])
+    assert.equal(contextName(value), value);
+  for (const value of [
+    "",
+    " two",
+    "two accounts",
+    "../context",
+    "a".repeat(65),
+  ])
+    assert.throws(() => contextName(value));
+});
 
 test("positiveInteger validates and bounds integers", () => {
   assert.equal(positiveInteger("3", "nodes", 9), 3);

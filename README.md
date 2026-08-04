@@ -112,6 +112,15 @@ Every command (except `login`/`logout`) talks to the API with an **API token**.
    ubctl whoami
    ```
 
+To connect more than one account, name each one during login and switch safely:
+
+```bash
+ubctl login --context personal
+ubctl login --context work
+ubctl auth ls
+ubctl auth switch personal
+```
+
 The token (plus API URL and active org) is written to
 `~/.config/ubctl/config.json` with `0600` permissions. To sign out:
 

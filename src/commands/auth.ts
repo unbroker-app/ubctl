@@ -1,4 +1,4 @@
-import { Command, InvalidArgumentError } from "commander";
+import { Command } from "commander";
 import {
   loadConfig,
   removeContext,
@@ -6,14 +6,7 @@ import {
   switchContext,
 } from "../config/store";
 import { print, printTable } from "../util/output";
-
-const validName = (name: string) => {
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(name))
-    throw new InvalidArgumentError(
-      "context name must contain only letters, numbers, dot, dash or underscore",
-    );
-  return name;
-};
+import { contextName } from "../util/validate";
 
 export function authCommand(): Command {
   const auth = new Command("auth").description(
@@ -46,21 +39,21 @@ export function authCommand(): Command {
     .command("save <name>")
     .description("Save current credentials as a named context")
     .action((name: string) => {
-      saveContext(validName(name));
+      saveContext(contextName(name));
       print(`Saved and selected context ${name}`);
     });
   auth
     .command("switch <name>")
     .description("Switch to a named context")
     .action((name: string) => {
-      switchContext(validName(name));
+      switchContext(contextName(name));
       print(`Switched to context ${name}`);
     });
   auth
     .command("rm <name>")
     .description("Remove a named context")
     .action((name: string) => {
-      removeContext(validName(name));
+      removeContext(contextName(name));
       print(`Removed context ${name}`);
     });
   return auth;

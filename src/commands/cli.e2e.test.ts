@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dirname, resolve } from "node:path";
@@ -33,7 +33,9 @@ async function withApi(
     });
     if (req.url === "/account") {
       res.writeHead(200, { "content-type": "application/json" });
-      const legacy = req.headers["x-api-key"] === "ub_live_legacy";
+      const token = req.headers["x-api-key"];
+      const legacy = token === "ub_live_legacy";
+      const alternate = token === "ub_account_b";
       res.end(
         JSON.stringify({
           account: legacy
@@ -45,30 +47,33 @@ async function withApi(
                 team: { name: "Test Org", uuid: "org_test" },
               }
             : {
-                uuid: "token:org_test",
-                name: "API token (ubctl-test)",
+                uuid: `token:${alternate ? "org_b" : "org_test"}`,
+                name: `API token (${alternate ? "account-b" : "ubctl-test"})`,
                 email: "",
                 status: "active",
                 identityType: "api_token",
-                tokenName: "ubctl-test",
-                team: { name: "Test Org", uuid: "org_test" },
+                tokenName: alternate ? "account-b" : "ubctl-test",
+                team: alternate
+                  ? { name: "Account B", uuid: "org_b" }
+                  : { name: "Test Org", uuid: "org_test" },
               },
         }),
       );
       return;
     }
     if (req.url === "/profile") {
+      const alternate = req.headers["x-api-key"] === "ub_account_b";
       res.writeHead(200, { "content-type": "application/json" });
       res.end(
         JSON.stringify({
           profile: {
-            id: "token:org_test",
-            name: "API token (ubctl-test)",
+            id: `token:${alternate ? "org_b" : "org_test"}`,
+            name: `API token (${alternate ? "account-b" : "ubctl-test"})`,
             email: "",
             identityType: "api_token",
-            tokenName: "ubctl-test",
+            tokenName: alternate ? "account-b" : "ubctl-test",
           },
-          orgId: "org_test",
+          orgId: alternate ? "org_b" : "org_test",
         }),
       );
       return;
@@ -337,6 +342,24 @@ async function invoke(apiUrl: string, args: string[], token = "ub_test") {
   }
 }
 
+async function invokePersisted(apiUrl: string, config: string, args: string[]) {
+  return execFileAsync(
+    process.execPath,
+    ["--import", "tsx", "src/index.ts", ...args],
+    {
+      cwd: repoRoot,
+      timeout: 5_000,
+      env: {
+        ...process.env,
+        XDG_CONFIG_HOME: config,
+        UBCTL_API_URL: apiUrl,
+        UBCTL_TOKEN: undefined,
+        UBCTL_ORG: undefined,
+      },
+    },
+  );
+}
+
 test("db create uses --engine-version and sends validated numeric values", async () => {
   await withApi(async (apiUrl, seen) => {
     const result = await invoke(apiUrl, [
@@ -479,6 +502,52 @@ test("login --json remains machine-readable", async () => {
     assert.equal(response.identity, 'API token "ubctl-test"');
     assert.equal(response.orgId, "org_test");
     assert.equal(response.apiUrl, apiUrl);
+  });
+});
+
+test("login --context keeps multiple accounts isolated and switchable", async () => {
+  await withApi(async (apiUrl) => {
+    const config = mkdtempSync(join(tmpdir(), "ubctl-context-e2e-"));
+    try {
+      await invokePersisted(apiUrl, config, [
+        "login",
+        "--token",
+        "ub_account_a",
+        "--context",
+        "account-a",
+      ]);
+      await assert.rejects(
+        invokePersisted(apiUrl, config, ["login", "--token", "ub_account_b"]),
+        /use --context <name>/,
+      );
+      await invokePersisted(apiUrl, config, [
+        "login",
+        "--token",
+        "ub_account_b",
+        "--context",
+        "account-b",
+      ]);
+
+      const stored = JSON.parse(
+        readFileSync(join(config, "ubctl", "config.json"), "utf8"),
+      );
+      assert.equal(stored.contexts["account-a"].token, "ub_account_a");
+      assert.equal(stored.contexts["account-a"].org, "org_test");
+      assert.equal(stored.contexts["account-b"].token, "ub_account_b");
+      assert.equal(stored.contexts["account-b"].org, "org_b");
+
+      await invokePersisted(apiUrl, config, ["auth", "switch", "account-a"]);
+      const first = await invokePersisted(apiUrl, config, ["whoami", "--json"]);
+      assert.equal(JSON.parse(first.stdout).team.uuid, "org_test");
+      await invokePersisted(apiUrl, config, ["auth", "switch", "account-b"]);
+      const second = await invokePersisted(apiUrl, config, [
+        "whoami",
+        "--json",
+      ]);
+      assert.equal(JSON.parse(second.stdout).team.uuid, "org_b");
+    } finally {
+      rmSync(config, { recursive: true, force: true });
+    }
   });
 });
 
