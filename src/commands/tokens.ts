@@ -12,7 +12,8 @@ export function tokensCommand(): Command {
       .description("List API tokens (secrets are never shown)")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { tokens: rows } = await client.get<TokensResponse>("/api-tokens");
+        const { tokens: rows } =
+          await client.get<TokensResponse>("/api-tokens");
         if (ctx.json) return printJson(rows);
         printTable(rows, [
           { key: "id", header: "id" },
@@ -34,21 +35,19 @@ export function tokensCommand(): Command {
           .choices(["read", "read/write"])
           .default("read/write"),
       )
-      .action(
-        async (opts: { name: string; scope: string }, cmd: Command) => {
-          const { ctx, client } = authed(cmd);
-          const res = await client.post<CreateTokenResponse>("/api-tokens", {
-            name: opts.name,
-            scope: opts.scope,
-          });
-          if (ctx.json) return printJson(res);
-          print(`Created token "${res.token.name}" (${res.token.id})`);
-          print("");
-          print("  " + res.secret);
-          print("");
-          print("This is the only time the secret is shown — store it now.");
-        },
-      ),
+      .action(async (opts: { name: string; scope: string }, cmd: Command) => {
+        const { ctx, client } = authed(cmd);
+        const res = await client.post<CreateTokenResponse>("/api-tokens", {
+          name: opts.name,
+          scope: opts.scope,
+        });
+        if (ctx.json) return printJson(res);
+        print(`Created token "${res.token.name}" (${res.token.id})`);
+        print("");
+        print("  " + res.secret);
+        print("");
+        print("This is the only time the secret is shown — store it now.");
+      }),
   );
 
   tokens

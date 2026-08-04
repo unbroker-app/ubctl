@@ -20,10 +20,7 @@ export function deployCommand(): Command {
       .argument("<serviceId>", "service id")
       .option("--wait", "poll until the deployment finishes")
       .addOption(
-        new Option(
-          "--timeout <seconds>",
-          "max seconds to wait with --wait",
-        )
+        new Option("--timeout <seconds>", "max seconds to wait with --wait")
           .argParser((value) => positiveNumber(value, "timeout"))
           .default(300),
       )
@@ -42,7 +39,9 @@ export function deployCommand(): Command {
           if (!opts.wait) {
             if (ctx.json) return printJson(deployment);
             print(`Queued deployment ${deployment.id} (${deployment.status})`);
-            print(`Follow it with: ubctl apps deployment ${deployment.id} --log`);
+            print(
+              `Follow it with: ubctl apps deployment ${deployment.id} --log`,
+            );
             return;
           }
 
@@ -125,7 +124,9 @@ export function deploymentCommand(): Command {
           print(`trigger: ${deployment.trigger}`);
           print(`commit:  ${deployment.commitSha ?? "-"}`);
           print(`created: ${age(deployment.createdAt)}`);
-          print(`took:    ${duration(deployment.createdAt, deployment.finishedAt)}`);
+          print(
+            `took:    ${duration(deployment.createdAt, deployment.finishedAt)}`,
+          );
           if (opts.log) {
             print("--- build log ---");
             print(deployment.buildLog || "(empty)");
@@ -155,10 +156,28 @@ export function rollbackCommand(): Command {
             { deploymentId },
           );
           if (ctx.json) return printJson(deployment);
-          print(`Rolled back — live is now ${deployment.id} (${deployment.status})`);
+          print(
+            `Rolled back — live is now ${deployment.id} (${deployment.status})`,
+          );
         },
       ),
   );
+}
+
+/** `ubctl apps cancel <deploymentId>` */
+export function cancelDeploymentCommand(): Command {
+  return new Command("cancel")
+    .description("Cancel a queued or running deployment")
+    .argument("<deploymentId>", "deployment to cancel")
+    .action(async (id: string, _opts: unknown, cmd: Command) => {
+      const { ctx, client } = authed(cmd);
+      const { deployment } = await client.post<DeploymentResponse>(
+        `/apps/deployments/${id}/cancel`,
+      );
+      if (ctx.json) return printJson(deployment);
+      print(`Cancelled deployment ${deployment.id} (${deployment.status})`);
+    })
+    .option("--json", "output raw JSON");
 }
 
 interface PollClient {

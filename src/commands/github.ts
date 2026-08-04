@@ -28,9 +28,8 @@ export function githubCommand(): Command {
       .description("List repos across the org's installations")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { repos } = await client.get<GithubReposResponse>(
-          "/apps/github/repos",
-        );
+        const { repos } =
+          await client.get<GithubReposResponse>("/apps/github/repos");
         if (ctx.json) return printJson(repos);
         printTable(repos, [
           { key: "fullName", header: "repo" },

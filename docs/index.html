@@ -559,9 +559,36 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           <div>
             <h4>Usage &amp; organizations</h4>
             <pre><span class="p">ubctl</span> account usage
+<span class="p">ubctl</span> account usage --breakdown
+<span class="p">ubctl</span> account charges
 <span class="p">ubctl</span> account invoices
+<span class="p">ubctl</span> account cli-usage --days 30
 <span class="p">ubctl</span> account activity
 <span class="p">ubctl</span> orgs</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OBSERVABILITY -->
+    <section id="observability">
+      <div class="wrap">
+        <h2>Operations</h2>
+        <h3 class="title">Observability, alerts, and diagnostics</h3>
+        <div class="grid2">
+          <div>
+            <h4>Services</h4>
+            <pre><span class="p">ubctl</span> apps services metrics <span class="o">&lt;svc&gt;</span> --since 1h
+<span class="p">ubctl</span> apps services logs <span class="o">&lt;svc&gt;</span> --since 30m
+<span class="p">ubctl</span> apps domains status <span class="o">&lt;svc&gt;</span>
+<span class="p">ubctl</span> monitoring ls</pre>
+          </div>
+          <div>
+            <h4>CLI operations</h4>
+            <pre><span class="p">ubctl</span> doctor
+<span class="p">ubctl</span> auth save production
+<span class="p">ubctl</span> auth switch production
+<span class="p">ubctl</span> completion zsh</pre>
           </div>
         </div>
       </div>

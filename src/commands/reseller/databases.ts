@@ -74,7 +74,9 @@ export function databasesCommand(): Command {
         print(`engine:  ${database.engine} ${database.version}`);
         print(`status:  ${database.status}`);
         print(`region:  ${database.region}`);
-        print(`nodes:   ${database.nodes} × ${database.size}, ${database.storageGb}GB`);
+        print(
+          `nodes:   ${database.nodes} × ${database.size}, ${database.storageGb}GB`,
+        );
       }),
   );
 
@@ -88,10 +90,7 @@ export function databasesCommand(): Command {
           .choices(ENGINES)
           .makeOptionMandatory(),
       )
-      .requiredOption(
-        "--engine-version <version>",
-        "engine version, e.g. 16",
-      )
+      .requiredOption("--engine-version <version>", "engine version, e.g. 16")
       .requiredOption("--region <region>", "region slug, e.g. nyc3")
       .requiredOption("--size <size>", "node size slug, e.g. db-s-1vcpu-1gb")
       .addOption(
@@ -131,13 +130,14 @@ export function databasesCommand(): Command {
         if (ctx.json) return printJson(database);
         print(`Provisioning database ${database.name} (${database.id})`);
         print(`status: ${database.status}`);
-        print(`Get connection details with: ubctl db connection ${database.id}`);
+        print(
+          `Get connection details with: ubctl db connection ${database.id}`,
+        );
       }),
   );
 
   // The connection holds credentials — always JSON, never a formatted table.
-  db
-    .command("connection <id>")
+  db.command("connection <id>")
     .description("Show connection details (credentials)")
     .action(async (id: string, _opts: unknown, cmd: Command) => {
       const { client } = authed(cmd);
@@ -164,15 +164,16 @@ export function databasesCommand(): Command {
         if (metrics.cpuPct !== undefined) print(`cpu:    ${metrics.cpuPct}%`);
         if (metrics.memPct !== undefined) print(`memory: ${metrics.memPct}%`);
         if (metrics.load1 !== undefined)
-          print(`load:   ${metrics.load1} / ${metrics.load5} / ${metrics.load15}`);
+          print(
+            `load:   ${metrics.load1} / ${metrics.load5} / ${metrics.load15}`,
+          );
       }),
   );
 
   db.addCommand(usersCommand());
   db.addCommand(dbsCommand());
 
-  db
-    .command("rm <id>")
+  db.command("rm <id>")
     .description("Destroy a database cluster")
     .action(async (id: string, _opts: unknown, cmd: Command) => {
       const { client } = authed(cmd);

@@ -164,6 +164,113 @@ async function withApi(
       );
       return;
     }
+    if (req.url?.startsWith("/apps/services/svc_test/metrics/history")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          metrics: [
+            {
+              capturedAt: 1,
+              readyReplicas: 1,
+              desiredReplicas: 1,
+              cpuMillicores: 12,
+              memoryMiB: 34,
+              restarts: 0,
+              unhealthyPods: 0,
+            },
+          ],
+        }),
+      );
+      return;
+    }
+    if (req.url?.startsWith("/apps/services/svc_test/logs/history")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          logs: [{ id: "log", observedAt: 1, line: "hello" }],
+          retentionMs: 1000,
+        }),
+      );
+      return;
+    }
+    if (req.url === "/apps/services/svc_test/tls") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ready: true }));
+      return;
+    }
+    if (req.url === "/apps/services/svc_test/domains" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ domains: [] }));
+      return;
+    }
+    if (req.url === "/account/current-charges") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          charges: {
+            cycle: {
+              start: 1,
+              end: 2,
+              nextChargeAt: 3,
+              daysInCycle: 30,
+              dayOfCycle: 1,
+            },
+            items: [],
+            ledger: 0,
+            accruedTotal: 1,
+            projectedTotal: 2,
+          },
+        }),
+      );
+      return;
+    }
+    if (req.url?.startsWith("/account/usage-breakdown")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          usage: {
+            month: "2026-08",
+            current: true,
+            products: [],
+            credit: { included: 10, used: 1 },
+            onDemand: 0,
+            accrued: 1,
+            projected: 2,
+            availableMonths: ["2026-08"],
+          },
+        }),
+      );
+      return;
+    }
+    if (req.url?.startsWith("/account/cli-usage")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          usage: {
+            since: "2026-08-01",
+            requests: 3,
+            errors: 0,
+            errorRate: 0,
+            averageLatencyMs: 10,
+            byVersion: [{ version: "0.4.0", requests: 3 }],
+            byRoute: [],
+          },
+        }),
+      );
+      return;
+    }
+    if (req.url === "/billing/budget" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({ budget: null, spend: { accrued: 1, projected: 2 } }),
+      );
+      return;
+    }
+    if (req.url === "/monitoring/policies") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ policies: [] }));
+      return;
+    }
     if (req.method === "POST" && req.url === "/team") {
       res.writeHead(201, { "content-type": "application/json" });
       res.end(
@@ -303,6 +410,47 @@ test("whoami labels an org-scoped API token without a demo account", async () =>
     assert.match(result.stdout, /Identity: API token "ubctl-test"/);
     assert.doesNotMatch(result.stdout, /Demo User/);
     assert.match(result.stdout, /Test Org \(org_test\)/);
+  });
+});
+
+test("observability and billing reads use their production API contracts", async () => {
+  await withApi(async (apiUrl, seen) => {
+    await invoke(apiUrl, [
+      "apps",
+      "services",
+      "metrics",
+      "svc_test",
+      "--since",
+      "1h",
+      "--json",
+    ]);
+    await invoke(apiUrl, [
+      "apps",
+      "services",
+      "logs",
+      "svc_test",
+      "--since",
+      "30m",
+      "--json",
+    ]);
+    await invoke(apiUrl, ["apps", "domains", "status", "svc_test", "--json"]);
+    await invoke(apiUrl, ["account", "charges", "--json"]);
+    await invoke(apiUrl, ["account", "usage", "--breakdown", "--json"]);
+    await invoke(apiUrl, ["account", "cli-usage", "--json"]);
+    await invoke(apiUrl, ["billing", "budget", "get", "--json"]);
+    await invoke(apiUrl, ["monitoring", "ls", "--json"]);
+    assert.equal(seen.length, 9);
+    assert.ok(
+      seen.some((request) =>
+        request.path.startsWith(
+          "/apps/services/svc_test/metrics/history?since=",
+        ),
+      ),
+    );
+    assert.ok(
+      seen.some((request) => request.path === "/account/current-charges"),
+    );
+    assert.ok(seen.some((request) => request.path === "/monitoring/policies"));
   });
 });
 

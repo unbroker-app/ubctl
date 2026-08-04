@@ -5,7 +5,9 @@ import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 
 export function envCommand(): Command {
-  const env = new Command("env").description("Manage service environment variables");
+  const env = new Command("env").description(
+    "Manage service environment variables",
+  );
 
   withJson(
     env

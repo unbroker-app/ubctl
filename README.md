@@ -16,6 +16,7 @@ browser (self-contained, no build needed).
 
 - [Install](#install)
 - [Authenticate](#authenticate)
+- [Observability and billing](#observability-and-billing)
 - [Core concepts](#core-concepts)
 - [Walkthrough 1 — deploy an app from GitHub](#walkthrough-1--deploy-an-app-from-github)
 - [Walkthrough 2 — a managed database](#walkthrough-2--a-managed-database)
@@ -129,6 +130,14 @@ ubctl apps deploy <serviceId> --wait
 ```
 
 ---
+
+## Observability and billing
+
+`ubctl` includes live and historical service metrics, retained runtime logs,
+DNS/TLS status, itemized usage, budgets, monitoring policies, uptime checks,
+privacy-preserving CLI usage analytics, named contexts, request tracing, safe
+retries, diagnostics, and shell completion. See the complete
+[observability and operations guide](docs/OBSERVABILITY.md).
 
 ## Core concepts
 
@@ -322,13 +331,16 @@ history and `ps` output. Use `login`, `UBCTL_TOKEN`, or stdin.
 
 **Global flags** (work on any command):
 
-| Flag              | Description                                       |
-| ----------------- | ------------------------------------------------- |
-| `--org <id>`      | Act against a specific organization (`X-Org-Id`). |
-| `--api-url <url>` | Override the Unbroker API base URL.               |
-| `--json`          | Output raw JSON instead of formatted tables.      |
-| `-v, --version`   | Print the CLI version.                            |
-| `-h, --help`      | Help for any command or subcommand.               |
+| Flag                  | Description                                       |
+| --------------------- | ------------------------------------------------- |
+| `--org <id>`          | Act against a specific organization (`X-Org-Id`). |
+| `--api-url <url>`     | Override the Unbroker API base URL.               |
+| `--json`              | Output raw JSON instead of formatted tables.      |
+| `--output text\|json` | Select the output format explicitly.              |
+| `--trace`             | Print safe request status and timing diagnostics. |
+| `--retries <count>`   | Retry rate limits and safe transient reads.       |
+| `-v, --version`       | Print the CLI version.                            |
+| `-h, --help`          | Help for any command or subcommand.               |
 
 Run `ubctl <command> --help` (e.g. `ubctl apps services create --help`) for the
 full option list of anything below.
@@ -346,10 +358,10 @@ ubctl apps projects env ls <projectId> | set <projectId> <KEY> <VALUE> | rm <pro
 ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [--branch --port --build --start --output-dir --root-dir --github-installation]
 ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --auto-deploy true|false]
 ubctl apps services security <id> --mode public|password|organization [--password <pw>]
-ubctl apps services rm <id> | logs <id> | metrics <id>
+ubctl apps services rm <id> | logs <id> [--since <duration>] | metrics <id> [--since <duration>]
 ubctl apps env ls <serviceId> | set <serviceId> <KEY> <VALUE> | rm <serviceId> <KEY>
-ubctl apps domains ls <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
-ubctl apps deploy <serviceId> [--wait] [--timeout <s>] | deployments <serviceId> | deployment <id> [--log] | rollback <serviceId> <deploymentId>
+ubctl apps domains ls <serviceId> | status <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
+ubctl apps deploy <serviceId> [--wait] [--timeout <s>] | deployments <serviceId> | deployment <id> [--log] | cancel <deploymentId> | rollback <serviceId> <deploymentId>
 ```
 
 Frameworks: `next`, `astro`, `node`, `react`, `vue`, `vite`, `static`.
@@ -389,7 +401,11 @@ the CLI reads what's already connected. Pass the id to
 
 ```
 ubctl tokens ls | create --name <name> [--scope read|read/write] | rm <id>
-ubctl account usage | invoices | activity | bandwidth | alerts
+ubctl account usage [--breakdown] [--month YYYY-MM] | charges | invoices | activity | bandwidth | alerts | cli-usage [--days 30]
+ubctl billing budget get | set --amount <usd> [--thresholds 50,80,100] | rm
+ubctl monitoring ls | alert-create --name --service --metric --compare --value [--window] | uptime-create --name --url | check <id> | rm <id>
+ubctl auth ls | save <name> | switch <name> | rm <name>
+ubctl doctor [--json] | completion bash|zsh|fish
 ubctl orgs                                   # list orgs you belong to
 ubctl orgs get <id> | billing <id>
 ubctl team ls | invite <email> [--role Owner|Admin|Member|Deploy] | rm <id>

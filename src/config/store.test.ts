@@ -18,6 +18,9 @@ import {
   deleteConfig,
   configPath,
   configDir,
+  saveContext,
+  switchContext,
+  removeContext,
 } from "./store";
 
 let tmp: string;
@@ -104,4 +107,24 @@ test("a corrupt config file is treated as empty", () => {
   // Write invalid JSON directly.
   writeFileSync(configPath(), "{not json");
   assert.deepEqual(loadConfig(), {});
+});
+
+test("named contexts save, switch, stay synchronized and remove safely", () => {
+  saveConfig({ apiUrl: "https://one.example", token: "token-one", org: "one" });
+  saveContext("one");
+  saveConfig({
+    apiUrl: "https://two.example",
+    token: "token-two",
+    org: "two",
+    currentContext: undefined,
+  });
+  saveContext("two");
+  switchContext("one");
+  assert.equal(loadConfig().token, "token-one");
+  clearConfigKey("token");
+  assert.equal(loadConfig().contexts?.one?.token, undefined);
+  switchContext("two");
+  assert.equal(loadConfig().org, "two");
+  removeContext("one");
+  assert.equal(loadConfig().contexts?.one, undefined);
 });

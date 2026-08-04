@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import type { CostBudget } from "../api/types";
 import { authed, withJson } from "./helpers";
 import { print, printJson } from "../util/output";
@@ -63,7 +63,9 @@ export function billingCommand(): Command {
           const thresholds = opts.thresholds.split(",").map((raw) => {
             const value = Number(raw.trim());
             if (!Number.isInteger(value) || value < 1 || value > 100)
-              throw new Error("thresholds must be integers from 1 to 100");
+              throw new InvalidArgumentError(
+                "thresholds must be integers from 1 to 100",
+              );
             return value;
           });
           const { budget: saved } = await client.put<{ budget: CostBudget }>(

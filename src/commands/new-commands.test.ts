@@ -42,7 +42,16 @@ test("beacon exposes its full lifecycle + settings", () => {
 
 test("db (managed databases) exposes create/metrics/users/dbs", () => {
   const db = find("db", buildProgram())!;
-  for (const c of ["ls", "get", "create", "connection", "metrics", "rm", "users", "dbs"]) {
+  for (const c of [
+    "ls",
+    "get",
+    "create",
+    "connection",
+    "metrics",
+    "rm",
+    "users",
+    "dbs",
+  ]) {
     assert.ok(find(c, db), `db ${c} should exist`);
   }
   for (const group of ["users", "dbs"]) {
@@ -95,7 +104,25 @@ test("orgs exposes implemented reads and account adds bandwidth/alerts", () => {
   }
   assert.equal(find("connection", orgs), undefined);
   const account = find("account", program)!;
-  for (const c of ["usage", "invoices", "activity", "bandwidth", "alerts"]) {
+  for (const c of [
+    "usage",
+    "invoices",
+    "activity",
+    "bandwidth",
+    "alerts",
+    "charges",
+    "cli-usage",
+  ]) {
     assert.ok(find(c, account), `account ${c} should exist`);
   }
+});
+
+test("operational CLI groups are registered", () => {
+  const program = buildProgram();
+  for (const name of ["auth", "billing", "monitoring", "completion", "doctor"])
+    assert.ok(find(name, program), `${name} should exist`);
+
+  const monitoring = find("monitoring", program)!;
+  for (const name of ["ls", "alert-create", "uptime-create", "check", "rm"])
+    assert.ok(find(name, monitoring), `monitoring ${name} should exist`);
 });

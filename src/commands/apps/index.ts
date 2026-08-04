@@ -8,6 +8,7 @@ import {
   deploymentsCommand,
   deploymentCommand,
   rollbackCommand,
+  cancelDeploymentCommand,
 } from "./deployments";
 
 /** The `apps` command group — the PaaS surface (projects, services, deploys). */
@@ -24,6 +25,7 @@ export function appsCommand(): Command {
   apps.addCommand(deploymentsCommand());
   apps.addCommand(deploymentCommand());
   apps.addCommand(rollbackCommand());
+  apps.addCommand(cancelDeploymentCommand());
 
   return apps;
 }

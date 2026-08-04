@@ -89,11 +89,11 @@ export class ApiClient {
           headers,
           body: body !== undefined ? JSON.stringify(body) : undefined,
         });
-        if (
-          attempt >= this.retries ||
-          (res.status !== 429 && res.status < 500)
-        )
-          break;
+        // 5xx retries are limited to safe reads: retrying a mutation after the
+        // server committed but failed to reply could create duplicate resources.
+        const retryable =
+          res.status === 429 || (method === "GET" && res.status >= 500);
+        if (attempt >= this.retries || !retryable) break;
         const retryAfter = Number(res.headers.get("retry-after"));
         const wait =
           Number.isFinite(retryAfter) && retryAfter > 0
@@ -105,7 +105,11 @@ export class ApiClient {
     } catch (err) {
       // DNS/connection failures never reach an HTTP status.
       const detail = err instanceof Error ? err.message : String(err);
-      throw new ApiError(0, "network_error", `cannot reach ${this.apiUrl}: ${detail}`);
+      throw new ApiError(
+        0,
+        "network_error",
+        `cannot reach ${this.apiUrl}: ${detail}`,
+      );
     }
     if (this.trace)
       process.stderr.write(

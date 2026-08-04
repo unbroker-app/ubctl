@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import type {
   UsageResponse,
   InvoicesResponse,
@@ -7,6 +7,7 @@ import type {
   AlertsResponse,
   CurrentChargesResponse,
   UsageBreakdownResponse,
+  CliUsageResponse,
 } from "../api/types";
 import { authed, withJson } from "./helpers";
 import { print, printJson, printTable } from "../util/output";
@@ -16,6 +17,39 @@ const usd = (n: number) => `$${n.toFixed(2)}`;
 export function accountCommand(): Command {
   const account = new Command("account").description(
     "Usage, invoices and activity",
+  );
+
+  withJson(
+    account
+      .command("cli-usage")
+      .description("Show privacy-preserving CLI request usage")
+      .option("--days <count>", "lookback window (1-365)", "30")
+      .action(async (opts: { days: string }, cmd: Command) => {
+        const { ctx, client } = authed(cmd);
+        const days = Number(opts.days);
+        if (!Number.isInteger(days) || days < 1 || days > 365)
+          throw new InvalidArgumentError(
+            "days must be an integer from 1 to 365",
+          );
+        const { usage } = await client.get<CliUsageResponse>(
+          `/account/cli-usage?days=${days}`,
+        );
+        if (ctx.json) return printJson(usage);
+        print(`Since:       ${usage.since}`);
+        print(`Requests:    ${usage.requests}`);
+        print(`Errors:      ${usage.errors} (${usage.errorRate}%)`);
+        print(`Avg latency: ${usage.averageLatencyMs}ms`);
+        print("\nBy version");
+        printTable(usage.byVersion, [
+          { key: "version", header: "version" },
+          { key: "requests", header: "requests" },
+        ]);
+        print("\nTop routes");
+        printTable(usage.byRoute.slice(0, 20), [
+          { key: "route", header: "route" },
+          { key: "requests", header: "requests" },
+        ]);
+      }),
   );
 
   withJson(

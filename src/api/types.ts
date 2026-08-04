@@ -337,6 +337,18 @@ export interface UsageBreakdown {
 export interface UsageBreakdownResponse {
   usage: UsageBreakdown;
 }
+export interface CliUsageSummary {
+  since: string;
+  requests: number;
+  errors: number;
+  errorRate: number;
+  averageLatencyMs: number;
+  byVersion: { version: string; requests: number }[];
+  byRoute: { route: string; requests: number }[];
+}
+export interface CliUsageResponse {
+  usage: CliUsageSummary;
+}
 export interface CostBudget {
   amount: number;
   thresholds: number[];
