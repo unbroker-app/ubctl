@@ -1,3 +1,5 @@
+import { VERSION } from "../version";
+
 /**
  * Thin typed wrapper over the Unbroker REST API. Sends the API token as
  * `X-API-Key` and the optional org as `X-Org-Id`, and maps the API's
@@ -10,6 +12,8 @@ export interface ApiClientOptions {
   org?: string;
   /** Injected for tests; defaults to the global fetch. */
   fetchFn?: typeof fetch;
+  trace?: boolean;
+  retries?: number;
 }
 
 /** A non-2xx response from the API (or a transport failure). */
@@ -36,12 +40,16 @@ export class ApiClient {
   private readonly token: string | undefined;
   private readonly org: string | undefined;
   private readonly fetchFn: typeof fetch;
+  private readonly trace: boolean;
+  private readonly retries: number;
 
   constructor(opts: ApiClientOptions) {
     this.apiUrl = opts.apiUrl.replace(/\/+$/, "");
     this.token = opts.token;
     this.org = opts.org;
     this.fetchFn = opts.fetchFn ?? fetch;
+    this.trace = opts.trace ?? false;
+    this.retries = opts.retries ?? 0;
   }
 
   get<T>(path: string): Promise<T> {
@@ -62,22 +70,47 @@ export class ApiClient {
 
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
+    headers["X-UBCTL-Version"] = VERSION;
     if (this.token) headers["X-API-Key"] = this.token;
     if (this.org) headers["X-Org-Id"] = this.org;
     if (body !== undefined) headers["Content-Type"] = "application/json";
 
     let res: Response;
+    const started = Date.now();
     try {
-      res = await this.fetchFn(`${this.apiUrl}${path}`, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      });
+      let attempt = 0;
+      while (true) {
+        if (this.trace)
+          process.stderr.write(
+            `→ ${method} ${path}${attempt ? ` (retry ${attempt})` : ""}\n`,
+          );
+        res = await this.fetchFn(`${this.apiUrl}${path}`, {
+          method,
+          headers,
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+        if (
+          attempt >= this.retries ||
+          (res.status !== 429 && res.status < 500)
+        )
+          break;
+        const retryAfter = Number(res.headers.get("retry-after"));
+        const wait =
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter * 1_000
+            : Math.min(250 * 2 ** attempt, 2_000);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        attempt++;
+      }
     } catch (err) {
       // DNS/connection failures never reach an HTTP status.
       const detail = err instanceof Error ? err.message : String(err);
       throw new ApiError(0, "network_error", `cannot reach ${this.apiUrl}: ${detail}`);
     }
+    if (this.trace)
+      process.stderr.write(
+        `← ${res.status} ${method} ${path} ${Date.now() - started}ms\n`,
+      );
 
     // 204 No Content (and other empty bodies) — nothing to parse.
     const text = await res.text();

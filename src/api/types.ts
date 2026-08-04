@@ -108,6 +108,7 @@ export interface Domain {
   hostname: string;
   status: DomainStatus;
   createdAt: number;
+  dns?: { type: "CNAME"; name: string; value: string };
 }
 
 export interface PodMetrics {
@@ -158,6 +159,30 @@ export interface LogsResponse {
 }
 export interface MetricsResponse {
   metrics: Metrics | null;
+}
+export interface MetricSample {
+  capturedAt: number;
+  readyReplicas: number;
+  desiredReplicas: number;
+  cpuMillicores: number | null;
+  memoryMiB: number | null;
+  restarts: number;
+  unhealthyPods: number;
+}
+export interface MetricsHistoryResponse {
+  metrics: MetricSample[];
+}
+export interface RuntimeLogLine {
+  id: string;
+  observedAt: number;
+  line: string;
+}
+export interface LogsHistoryResponse {
+  logs: RuntimeLogLine[];
+  retentionMs: number;
+}
+export interface TlsStatus {
+  ready: boolean;
 }
 
 /* ----- API tokens ----- */
@@ -263,6 +288,64 @@ export interface BandwidthResponse {
 export interface AlertsResponse {
   enabled: boolean;
   anomalies?: number;
+}
+
+export interface ChargeItem {
+  id: string;
+  name: string;
+  type: string;
+  dailyRate: number;
+  days: number;
+  accrued: number;
+  projected: number;
+}
+export interface CurrentCharges {
+  cycle: {
+    start: number;
+    end: number;
+    nextChargeAt: number;
+    daysInCycle: number;
+    dayOfCycle: number;
+  };
+  items: ChargeItem[];
+  ledger: number;
+  accruedTotal: number;
+  projectedTotal: number;
+}
+export interface CurrentChargesResponse {
+  charges: CurrentCharges;
+}
+export interface UsageProductLine {
+  product: string;
+  label: string;
+  group: string;
+  charge: number;
+  qty: number | null;
+  unit: string | null;
+  spark: number[];
+}
+export interface UsageBreakdown {
+  month: string;
+  current: boolean;
+  products: UsageProductLine[];
+  credit: { included: number; used: number };
+  onDemand: number;
+  accrued: number;
+  projected: number;
+  availableMonths: string[];
+}
+export interface UsageBreakdownResponse {
+  usage: UsageBreakdown;
+}
+export interface CostBudget {
+  amount: number;
+  thresholds: number[];
+  includeForecast: boolean;
+  emailEnabled: boolean;
+  enabled: boolean;
+}
+export interface CostBudgetResponse {
+  budget?: CostBudget | null;
 }
 
 /* ----- Notifications ----- */

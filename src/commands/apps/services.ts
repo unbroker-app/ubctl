@@ -4,6 +4,8 @@ import type {
   ServiceResponse,
   LogsResponse,
   MetricsResponse,
+  MetricsHistoryResponse,
+  LogsHistoryResponse,
   Framework,
 } from "../../api/types";
 import { authed, withJson } from "../helpers";
@@ -11,6 +13,7 @@ import { print, printJson, printTable } from "../../util/output";
 import { age } from "../../util/format";
 import { CliError } from "../../util/errors";
 import { repositoryUrl, positiveInteger } from "../../util/validate";
+import { sinceEpoch } from "../../util/time-input";
 
 const FRAMEWORKS: Framework[] = [
   "next",
@@ -258,8 +261,22 @@ export function servicesCommand(): Command {
     services
       .command("logs <id>")
       .description("Show runtime logs")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
+      .option(
+        "--since <duration>",
+        "show retained logs since 30m, 2h, an ISO time, or epoch ms",
+      )
+      .action(async (id: string, opts: { since?: string }, cmd: Command) => {
         const { ctx, client } = authed(cmd);
+        if (opts.since) {
+          const since = sinceEpoch(opts.since);
+          const { logs } = await client.get<LogsHistoryResponse>(
+            `/apps/services/${id}/logs/history?since=${since}`,
+          );
+          if (ctx.json) return printJson(logs);
+          for (const entry of logs)
+            print(`${new Date(entry.observedAt).toISOString()}  ${entry.line}`);
+          return;
+        }
         const { logs } = await client.get<LogsResponse>(
           `/apps/services/${id}/logs`,
         );
@@ -272,8 +289,38 @@ export function servicesCommand(): Command {
     services
       .command("metrics <id>")
       .description("Show live CPU/memory/replica metrics")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
+      .option(
+        "--since <duration>",
+        "show retained metrics since 30m, 2h, an ISO time, or epoch ms",
+      )
+      .action(async (id: string, opts: { since?: string }, cmd: Command) => {
         const { ctx, client } = authed(cmd);
+        if (opts.since) {
+          const since = sinceEpoch(opts.since);
+          const { metrics } = await client.get<MetricsHistoryResponse>(
+            `/apps/services/${id}/metrics/history?since=${since}`,
+          );
+          if (ctx.json) return printJson(metrics);
+          printTable(
+            metrics.map((m) => ({
+              time: new Date(m.capturedAt).toISOString(),
+              replicas: `${m.readyReplicas}/${m.desiredReplicas}`,
+              cpu: m.cpuMillicores ?? "-",
+              memory: m.memoryMiB ?? "-",
+              restarts: m.restarts,
+              unhealthy: m.unhealthyPods,
+            })),
+            [
+              { key: "time", header: "time" },
+              { key: "replicas", header: "replicas" },
+              { key: "cpu", header: "cpu(m)" },
+              { key: "memory", header: "mem(Mi)" },
+              { key: "restarts", header: "restarts" },
+              { key: "unhealthy", header: "unhealthy" },
+            ],
+          );
+          return;
+        }
         const { metrics } = await client.get<MetricsResponse>(
           `/apps/services/${id}/metrics`,
         );
@@ -296,6 +343,24 @@ export function servicesCommand(): Command {
         ]);
       }),
   );
+
+  for (const state of ["enable", "disable"] as const) {
+    withJson(
+      services
+        .command(`${state} <id>`)
+        .description(`${state === "enable" ? "Start" : "Stop"} a service`)
+        .action(async (id: string, _opts: unknown, cmd: Command) => {
+          const { ctx, client } = authed(cmd);
+          const { service } = await client.post<ServiceResponse>(
+            `/apps/services/${id}/${state}`,
+          );
+          if (ctx.json) return printJson(service);
+          print(
+            `${state === "enable" ? "Enabled" : "Disabled"} ${service.name} (${service.status})`,
+          );
+        }),
+    );
+  }
 
   return services;
 }

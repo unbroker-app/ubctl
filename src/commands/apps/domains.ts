@@ -1,5 +1,9 @@
 import { Command } from "commander";
-import type { DomainsResponse, DomainResponse } from "../../api/types";
+import type {
+  DomainsResponse,
+  DomainResponse,
+  TlsStatus,
+} from "../../api/types";
 import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 import { age } from "../../util/format";
@@ -18,11 +22,44 @@ export function domainsCommand(): Command {
         );
         if (ctx.json) return printJson(rows);
         printTable(
-          rows.map((d) => ({ ...d, created: age(d.createdAt) })),
+          rows.map((d) => ({
+            ...d,
+            dns: d.dns?.value ?? "-",
+            created: age(d.createdAt),
+          })),
           [
             { key: "hostname", header: "hostname" },
             { key: "status", header: "status" },
+            { key: "dns", header: "dns target" },
             { key: "created", header: "created" },
+          ],
+        );
+      }),
+  );
+
+  withJson(
+    domains
+      .command("status <serviceId>")
+      .description("Show DNS targets and default TLS readiness")
+      .action(async (serviceId: string, _opts: unknown, cmd: Command) => {
+        const { ctx, client } = authed(cmd);
+        const [{ domains: rows }, tls] = await Promise.all([
+          client.get<DomainsResponse>(`/apps/services/${serviceId}/domains`),
+          client.get<TlsStatus>(`/apps/services/${serviceId}/tls`),
+        ]);
+        const result = { tls, domains: rows };
+        if (ctx.json) return printJson(result);
+        print(`Default TLS: ${tls.ready ? "ready" : "provisioning"}`);
+        printTable(
+          rows.map((d) => ({
+            hostname: d.hostname,
+            status: d.status,
+            dns: d.dns?.value ?? "-",
+          })),
+          [
+            { key: "hostname", header: "hostname" },
+            { key: "status", header: "status" },
+            { key: "dns", header: "CNAME target" },
           ],
         );
       }),
@@ -61,9 +98,7 @@ export function domainsCommand(): Command {
         cmd: Command,
       ) => {
         const { client } = authed(cmd);
-        await client.delete(
-          `/apps/services/${serviceId}/domains/${hostname}`,
-        );
+        await client.delete(`/apps/services/${serviceId}/domains/${hostname}`);
         print(`Removed ${hostname} from ${serviceId}`);
       },
     );

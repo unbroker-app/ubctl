@@ -6,6 +6,8 @@ export interface GlobalOptions {
   apiUrl?: string;
   org?: string;
   json?: boolean;
+  trace?: boolean;
+  retries?: string | number;
 }
 
 /** Everything a command needs to talk to the API, with sources resolved. */
@@ -14,6 +16,8 @@ export interface Context {
   token: string | undefined;
   org: string | undefined;
   json: boolean;
+  trace: boolean;
+  retries: number;
 }
 
 /**
@@ -40,5 +44,7 @@ export function resolveContext(opts: GlobalOptions): Context {
     token: token && token.length > 0 ? token : undefined,
     org: org && org.length > 0 ? org : undefined,
     json: opts.json ?? false,
+    trace: opts.trace ?? false,
+    retries: Math.max(0, Math.min(10, Number(opts.retries ?? 3) || 0)),
   };
 }

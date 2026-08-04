@@ -8,6 +8,8 @@ export function clientFor(ctx: Context, fetchFn?: typeof fetch): ApiClient {
     apiUrl: ctx.apiUrl,
     token: ctx.token,
     org: ctx.org,
+    trace: ctx.trace,
+    retries: ctx.retries,
     fetchFn,
   });
 }
