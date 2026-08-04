@@ -16,9 +16,11 @@
         --primary: #aafb00;
         --primary-dim: #7fbd06;
         --radius: 12px;
-        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+        --mono:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
           "Liberation Mono", monospace;
-        --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+        --sans:
+          system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
           sans-serif;
       }
       * {
@@ -51,7 +53,8 @@
       /* ---- header ---- */
       header.hero {
         border-bottom: 1px solid var(--border);
-        background: radial-gradient(
+        background:
+          radial-gradient(
             1200px 400px at 50% -120px,
             rgba(170, 251, 0, 0.12),
             transparent 70%
@@ -318,7 +321,9 @@
     <header class="hero">
       <div class="wrap">
         <div class="logo"><span class="dot"></span> UNBROKER CLOUD</div>
-        <h1><span class="accent">ubctl</span> — tu cloud<br />desde la terminal</h1>
+        <h1>
+          <span class="accent">ubctl</span> — tu cloud<br />desde la terminal
+        </h1>
         <p class="lede">
           La CLI oficial de Unbroker Cloud. Despliega apps, gestiona servicios,
           variables de entorno y recursos cloud — todo de forma programática,
@@ -352,7 +357,9 @@
         </p>
 
         <h4>Binario (Linux / macOS · x64 / arm64)</h4>
-        <pre>curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre>
+        <pre>
+curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre
+        >
 
         <h4>npm (GitHub Packages)</h4>
         <pre><span class="c"># una sola vez: apunta el scope a GitHub Packages y autentícate</span>
@@ -369,8 +376,8 @@ npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># in
         <h2>Paso 1</h2>
         <h3 class="title">Autenticarse</h3>
         <p>
-          <code class="inline">ubctl login</code> valida tu token de API contra el
-          servidor y lo guarda localmente en
+          <code class="inline">ubctl login</code> valida tu token de API contra
+          el servidor y lo guarda localmente en
           <code class="inline">~/.config/ubctl/config.json</code> (con permisos
           <code class="inline">0600</code>). El secreto se envía como
           <code class="inline">X-API-Key</code> en cada petición.
@@ -380,12 +387,34 @@ npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># in
 echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdin  <span class="c"># o por stdin (CI)</span>
 
 <span class="p">ubctl</span> whoami                <span class="c"># confirma la cuenta y la organización activa</span></pre>
+        <p>
+          Al autenticarte correctamente, el CLI muestra una interfaz compacta
+          con la identidad del token o usuario, la organización activa, el
+          endpoint de API, la ruta de configuración y los siguientes comandos
+          recomendados. Para automatizaciones, usa
+          <code class="inline">ubctl --json login --stdin</code> y recibirás
+          solamente JSON estructurado.
+        </p>
+        <pre>
+╭──────────────────────────────────────────╮
+│ UNBROKER CLOUD                           │
+│ ✓ Authenticated                          │
+├──────────────────────────────────────────┤
+│ Identity  API token "mi-cli"             │
+│ Org       mi-organizacion                │
+│ API       https://api.unbroker.cloud     │
+├──────────────────────────────────────────┤
+│ Next: ubctl apps projects ls             │
+│ Help: ubctl --help                       │
+╰──────────────────────────────────────────╯</pre
+        >
         <div class="note">
-          <strong>De dónde sale el token:</strong> créalo en el panel de Unbroker
-          o con <code class="inline">ubctl tokens create --name mi-cli</code>. El
-          secreto <code class="inline">ub_live_…</code> se muestra <em>una sola
-          vez</em> — guárdalo en el momento. En el servidor se almacena solo su
-          hash, nunca en texto plano.
+          <strong>De dónde sale el token:</strong> créalo en el panel de
+          Unbroker o con
+          <code class="inline">ubctl tokens create --name mi-cli</code>. El
+          secreto <code class="inline">ub_live_…</code> se muestra
+          <em>una sola vez</em> — guárdalo en el momento. En el servidor se
+          almacena solo su hash, nunca en texto plano.
         </div>
       </div>
     </section>
@@ -397,15 +426,17 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <h3 class="title">El flujo completo de una app</h3>
         <p>
           De cero a una URL en vivo: un <strong>proyecto</strong> contiene
-          <strong>servicios</strong>, cada servicio se despliega desde un repo de
-          GitHub y produce <strong>deployments</strong> inmutables.
+          <strong>servicios</strong>, cada servicio se despliega desde un repo
+          de GitHub y produce <strong>deployments</strong> inmutables.
         </p>
 
         <div class="step">
           <div class="n">1</div>
           <div class="body">
             <h4>Crear un proyecto</h4>
-            <p>Contenedor de servicios. El slug se genera a partir del nombre.</p>
+            <p>
+              Contenedor de servicios. El slug se genera a partir del nombre.
+            </p>
             <pre><span class="p">ubctl</span> apps projects create --name <span class="s">"Mi App"</span>
 <span class="p">ubctl</span> apps projects ls</pre>
           </div>
@@ -583,11 +614,16 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           <tbody>
             <tr>
               <td><code>--json</code></td>
-              <td>Salida JSON cruda en cualquier comando de lectura (para scripting).</td>
+              <td>
+                Salida JSON cruda en cualquier comando de lectura (para
+                scripting).
+              </td>
             </tr>
             <tr>
               <td><code>--org &lt;id&gt;</code></td>
-              <td>Actúa contra una organización concreta (<code>X-Org-Id</code>).</td>
+              <td>
+                Actúa contra una organización concreta (<code>X-Org-Id</code>).
+              </td>
             </tr>
             <tr>
               <td><code>--api-url &lt;url&gt;</code></td>
@@ -605,11 +641,13 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         </table>
         <div class="note">
           <strong>Precedencia de configuración:</strong> flag
-          <span class="arrow">→</span> variable de entorno
-          (<code class="inline">UBCTL_*</code>) <span class="arrow">→</span>
-          archivo <code class="inline">~/.config/ubctl/config.json</code>
-          <span class="arrow">→</span> default
-          (<code class="inline">https://api.unbroker.cloud</code>).
+          <span class="arrow">→</span> variable de entorno (<code class="inline"
+            >UBCTL_*</code
+          >) <span class="arrow">→</span> archivo
+          <code class="inline">~/.config/ubctl/config.json</code>
+          <span class="arrow">→</span> default (<code class="inline"
+            >https://api.unbroker.cloud</code
+          >).
         </div>
       </div>
     </section>

@@ -5,7 +5,7 @@ import type { ProfileResponse } from "../api/types";
 import { saveConfig, configPath } from "../config/store";
 import { CliError } from "../util/errors";
 import { promptHidden, readStdin } from "../util/prompt";
-import { print } from "../util/output";
+import { printJson, printPanel } from "../util/output";
 
 interface LoginOptions {
   token?: string;
@@ -56,10 +56,43 @@ export function loginCommand(): Command {
         org: ctx.org ?? profile.orgId,
       });
 
-      print(`Logged in to ${ctx.apiUrl}`);
-      print(`Active org: ${ctx.org ?? profile.orgId}`);
-      print(`Credentials saved to ${configPath()}`);
+      const orgId = ctx.org ?? profile.orgId;
+      const identity = describeIdentity(profile);
+      if (ctx.json) {
+        printJson({
+          authenticated: true,
+          identity,
+          orgId,
+          apiUrl: ctx.apiUrl,
+          configPath: configPath(),
+        });
+        return;
+      }
+
+      printPanel(
+        "UNBROKER CLOUD",
+        "✓ Authenticated",
+        [
+          { label: "Identity", value: identity },
+          { label: "Org", value: orgId },
+          { label: "API", value: ctx.apiUrl },
+          { label: "Config", value: configPath() },
+        ],
+        ["Next: ubctl apps projects ls", "Help: ubctl --help"],
+      );
     });
+}
+
+function describeIdentity(profile: ProfileResponse): string {
+  if (profile.profile.identityType === "api_token") {
+    return profile.profile.tokenName
+      ? `API token "${profile.profile.tokenName}"`
+      : "Organization API token";
+  }
+  if (profile.profile.email) {
+    return `${profile.profile.name} <${profile.profile.email}>`;
+  }
+  return profile.profile.name;
 }
 
 /** Resolve the token from flag, piped stdin, or an interactive hidden prompt. */

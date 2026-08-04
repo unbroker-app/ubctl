@@ -57,6 +57,22 @@ async function withApi(
       );
       return;
     }
+    if (req.url === "/profile") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          profile: {
+            id: "token:org_test",
+            name: "API token (ubctl-test)",
+            email: "",
+            identityType: "api_token",
+            tokenName: "ubctl-test",
+          },
+          orgId: "org_test",
+        }),
+      );
+      return;
+    }
     if (req.method === "POST" && req.url === "/databases") {
       res.writeHead(201, { "content-type": "application/json" });
       res.end(
@@ -287,6 +303,34 @@ test("whoami labels an org-scoped API token without a demo account", async () =>
     assert.match(result.stdout, /Identity: API token "ubctl-test"/);
     assert.doesNotMatch(result.stdout, /Demo User/);
     assert.match(result.stdout, /Test Org \(org_test\)/);
+  });
+});
+
+test("login renders a compact authenticated panel", async () => {
+  await withApi(async (apiUrl, seen) => {
+    const result = await invoke(apiUrl, ["login", "--token", "ub_test"]);
+    assert.match(result.stdout, /UNBROKER CLOUD/);
+    assert.match(result.stdout, /✓ Authenticated/);
+    assert.match(result.stdout, /API token "ubctl-test"/);
+    assert.match(result.stdout, /Org\s+org_test/);
+    assert.match(result.stdout, /Next: ubctl apps projects ls/);
+    assert.equal(seen[0]?.path, "/profile");
+  });
+});
+
+test("login --json remains machine-readable", async () => {
+  await withApi(async (apiUrl) => {
+    const result = await invoke(apiUrl, [
+      "--json",
+      "login",
+      "--token",
+      "ub_test",
+    ]);
+    const response = JSON.parse(result.stdout);
+    assert.equal(response.authenticated, true);
+    assert.equal(response.identity, 'API token "ubctl-test"');
+    assert.equal(response.orgId, "org_test");
+    assert.equal(response.apiUrl, apiUrl);
   });
 });
 
