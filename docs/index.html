@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ubctl — flujo del CLI de Unbroker Cloud</title>
+    <title>ubctl — Unbroker Cloud CLI workflow</title>
     <style>
       :root {
         --bg: #0a0b0d;
@@ -322,26 +322,26 @@
       <div class="wrap">
         <div class="logo"><span class="dot"></span> UNBROKER CLOUD</div>
         <h1>
-          <span class="accent">ubctl</span> — tu cloud<br />desde la terminal
+          <span class="accent">ubctl</span> — your cloud<br />from the terminal
         </h1>
         <p class="lede">
-          La CLI oficial de Unbroker Cloud. Despliega apps, gestiona servicios,
-          variables de entorno y recursos cloud — todo de forma programática,
-          desde tu terminal o tu CI.
+          The official Unbroker Cloud CLI. Deploy apps and manage services,
+          environment variables, and cloud resources programmatically from your
+          terminal or CI.
         </p>
-        <span class="pill">$ ubctl apps deploy mi-servicio --wait</span>
+        <span class="pill">$ ubctl apps deploy my-service --wait</span>
       </div>
     </header>
 
     <nav class="toc">
       <div class="wrap">
-        <a href="#instalar">Instalar</a>
-        <a href="#login">Autenticación</a>
-        <a href="#flujo">Flujo de una app</a>
-        <a href="#deploy">Ciclo de deploy</a>
-        <a href="#env">Variables &amp; dominios</a>
-        <a href="#tokens">Tokens &amp; cuenta</a>
-        <a href="#recursos">Recursos cloud</a>
+        <a href="#instalar">Install</a>
+        <a href="#login">Authentication</a>
+        <a href="#flujo">App workflow</a>
+        <a href="#deploy">Deploy lifecycle</a>
+        <a href="#env">Variables &amp; domains</a>
+        <a href="#tokens">Tokens &amp; account</a>
+        <a href="#recursos">Cloud resources</a>
         <a href="#flags">Flags &amp; config</a>
       </div>
     </nav>
@@ -349,59 +349,58 @@
     <!-- INSTALL -->
     <section id="instalar">
       <div class="wrap">
-        <h2>Paso 0</h2>
-        <h3 class="title">Instalar</h3>
+        <h2>Step 0</h2>
+        <h3 class="title">Install</h3>
         <p>
-          El instalador descarga un binario público verificado desde GitHub
-          Releases. No requiere una cuenta ni un token de GitHub.
+          The installer downloads a verified public binary from GitHub Releases.
+          It does not require a GitHub account or token.
         </p>
 
-        <h4>Binario (Linux / macOS · x64 / arm64)</h4>
+        <h4>Binary (Linux / macOS · x64 / arm64)</h4>
         <pre>
 curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash</pre
         >
 
         <h4>npm (GitHub Packages)</h4>
-        <pre><span class="c"># una sola vez: apunta el scope a GitHub Packages y autentícate</span>
+        <pre><span class="c"># once: point the scope at GitHub Packages and authenticate</span>
 echo <span class="s">"@unbroker-app:registry=https://npm.pkg.github.com"</span> &gt;&gt; ~/.npmrc
-echo <span class="s">"//npm.pkg.github.com/:_authToken=TU_GITHUB_TOKEN"</span> &gt;&gt; ~/.npmrc
+echo <span class="s">"//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN"</span> &gt;&gt; ~/.npmrc
 
-npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># instala el comando `ubctl`</span></pre>
+npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># installs the `ubctl` command</span></pre>
       </div>
     </section>
 
     <!-- LOGIN -->
     <section id="login">
       <div class="wrap">
-        <h2>Paso 1</h2>
-        <h3 class="title">Autenticarse</h3>
+        <h2>Step 1</h2>
+        <h3 class="title">Authenticate</h3>
         <p>
-          <code class="inline">ubctl login</code> valida tu token de API contra
-          el servidor y lo guarda localmente en
-          <code class="inline">~/.config/ubctl/config.json</code> (con permisos
-          <code class="inline">0600</code>). El secreto se envía como
-          <code class="inline">X-API-Key</code> en cada petición.
+          <code class="inline">ubctl login</code> validates your API token and
+          stores it in
+          <code class="inline">~/.config/ubctl/config.json</code> with
+          <code class="inline">0600</code> permissions. Each request sends the
+          secret as <code class="inline">X-API-Key</code>.
         </p>
-        <pre><span class="p">ubctl</span> login                 <span class="c"># pide el token de forma interactiva (oculto)</span>
-<span class="p">ubctl</span> login --token ub_live_… <span class="c"># o pásalo directo</span>
-echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdin  <span class="c"># o por stdin (CI)</span>
+        <pre><span class="p">ubctl</span> login                 <span class="c"># interactive hidden prompt</span>
+<span class="p">ubctl</span> login --token ub_live_… <span class="c"># pass it directly</span>
+echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdin  <span class="c"># stdin for CI</span>
 
-<span class="p">ubctl</span> whoami                <span class="c"># confirma la cuenta y la organización activa</span></pre>
+<span class="p">ubctl</span> whoami                <span class="c"># confirm identity and active organization</span></pre>
         <p>
-          Al autenticarte correctamente, el CLI muestra una interfaz compacta
-          con la identidad del token o usuario, la organización activa, el
-          endpoint de API, la ruta de configuración y los siguientes comandos
-          recomendados. Para automatizaciones, usa
-          <code class="inline">ubctl --json login --stdin</code> y recibirás
-          solamente JSON estructurado.
+          After a successful login, the CLI displays a compact interface with
+          the token or user identity, active organization, API endpoint, config
+          path, and suggested next commands. Automation can use
+          <code class="inline">ubctl --json login --stdin</code> for structured
+          JSON output only.
         </p>
         <pre>
 ╭──────────────────────────────────────────╮
 │ UNBROKER CLOUD                           │
 │ ✓ Authenticated                          │
 ├──────────────────────────────────────────┤
-│ Identity  API token "mi-cli"             │
-│ Org       mi-organizacion                │
+│ Identity  API token "my-cli"             │
+│ Org       my-organization                │
 │ API       https://api.unbroker.cloud     │
 ├──────────────────────────────────────────┤
 │ Next: ubctl apps projects ls             │
@@ -409,12 +408,12 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
 ╰──────────────────────────────────────────╯</pre
         >
         <div class="note">
-          <strong>De dónde sale el token:</strong> créalo en el panel de
-          Unbroker o con
-          <code class="inline">ubctl tokens create --name mi-cli</code>. El
-          secreto <code class="inline">ub_live_…</code> se muestra
-          <em>una sola vez</em> — guárdalo en el momento. En el servidor se
-          almacena solo su hash, nunca en texto plano.
+          <strong>Where the token comes from:</strong> create it in the Unbroker
+          dashboard or with
+          <code class="inline">ubctl tokens create --name my-cli</code>. The
+          <code class="inline">ub_live_…</code> secret is shown <em>once</em>;
+          save it immediately. The server stores only its hash, never the
+          plaintext token.
         </div>
       </div>
     </section>
@@ -422,22 +421,22 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- APP FLOW -->
     <section id="flujo">
       <div class="wrap">
-        <h2>Paso 2</h2>
-        <h3 class="title">El flujo completo de una app</h3>
+        <h2>Step 2</h2>
+        <h3 class="title">Complete app workflow</h3>
         <p>
-          De cero a una URL en vivo: un <strong>proyecto</strong> contiene
-          <strong>servicios</strong>, cada servicio se despliega desde un repo
-          de GitHub y produce <strong>deployments</strong> inmutables.
+          From zero to a live URL: a <strong>project</strong> contains
+          <strong>services</strong>. Each service deploys from a repository and
+          produces immutable <strong>deployments</strong>.
         </p>
 
         <div class="step">
           <div class="n">1</div>
           <div class="body">
-            <h4>Crear un proyecto</h4>
+            <h4>Create a project</h4>
             <p>
-              Contenedor de servicios. El slug se genera a partir del nombre.
+              A container for services. Its slug is generated from the name.
             </p>
-            <pre><span class="p">ubctl</span> apps projects create --name <span class="s">"Mi App"</span>
+            <pre><span class="p">ubctl</span> apps projects create --name <span class="s">"My App"</span>
 <span class="p">ubctl</span> apps projects ls</pre>
           </div>
         </div>
@@ -445,14 +444,14 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <div class="step">
           <div class="n">2</div>
           <div class="body">
-            <h4>Crear un servicio</h4>
+            <h4>Create a service</h4>
             <p>
-              Apunta a un repo público de GitHub y elige el framework. Opcional:
-              rama, comandos de build/start, puerto.
+              Point it at a supported repository and choose a framework.
+              Optionally set the branch, build/start commands, and port.
             </p>
             <pre><span class="p">ubctl</span> apps services create <span class="o">&lt;projectId&gt;</span> \
   --name web \
-  --repo https://github.com/mi-org/mi-repo \
+  --repo https://github.com/my-org/my-repo \
   --framework next \
   --branch main</pre>
           </div>
@@ -461,10 +460,10 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <div class="step">
           <div class="n">3</div>
           <div class="body">
-            <h4>Desplegar y seguir el pipeline</h4>
+            <h4>Deploy and follow the pipeline</h4>
             <p>
-              <code class="inline">--wait</code> sigue el deployment hasta que
-              termina, imprimiendo cada transición de estado.
+              <code class="inline">--wait</code> follows the deployment until
+              completion and prints every status transition.
             </p>
             <pre><span class="p">ubctl</span> apps deploy <span class="o">&lt;serviceId&gt;</span> --wait</pre>
           </div>
@@ -473,8 +472,8 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <div class="step">
           <div class="n">4</div>
           <div class="body">
-            <h4>Inspeccionar</h4>
-            <p>Historial de deployments, logs de runtime y métricas en vivo.</p>
+            <h4>Inspect</h4>
+            <p>Deployment history, runtime logs, and live metrics.</p>
             <pre><span class="p">ubctl</span> apps deployments <span class="o">&lt;serviceId&gt;</span>
 <span class="p">ubctl</span> apps deployment <span class="o">&lt;deploymentId&gt;</span> --log
 <span class="p">ubctl</span> apps services logs <span class="o">&lt;serviceId&gt;</span>
@@ -487,13 +486,13 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- DEPLOY LIFECYCLE -->
     <section id="deploy">
       <div class="wrap">
-        <h2>Bajo el capó</h2>
-        <h3 class="title">El ciclo de vida de un deployment</h3>
+        <h2>Under the hood</h2>
+        <h3 class="title">Deployment lifecycle</h3>
         <p>
-          Cada deploy avanza por una máquina de estados. Con
-          <code class="inline">--wait</code> el CLI hace polling y te muestra el
-          avance; si falla, imprime el final del build log y sale con código ≠ 0
-          (útil como gate en CI).
+          Every deploy moves through a state machine. With
+          <code class="inline">--wait</code>, the CLI polls and displays its
+          progress. On failure it prints the end of the build log and exits
+          non-zero, which is useful as a CI gate.
         </p>
         <div class="pipeline">
           <span class="stage">queued</span>
@@ -507,9 +506,9 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           <span class="stage fail">failed ✕</span>
         </div>
         <p style="font-size: 14px; margin-top: 16px">
-          Un nuevo deploy en vivo marca el anterior como
-          <code class="inline">superseded</code>. Volver a una versión previa es
-          instantáneo y no reconstruye:
+          A new live deploy marks the previous one as
+          <code class="inline">superseded</code>. Rolling back is immediate and
+          does not rebuild:
         </p>
         <pre><span class="p">ubctl</span> apps rollback <span class="o">&lt;serviceId&gt;</span> <span class="o">&lt;deploymentId&gt;</span></pre>
       </div>
@@ -518,26 +517,26 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- ENV & DOMAINS -->
     <section id="env">
       <div class="wrap">
-        <h2>Paso 3</h2>
-        <h3 class="title">Variables de entorno &amp; dominios</h3>
+        <h2>Step 3</h2>
+        <h3 class="title">Environment variables &amp; domains</h3>
         <div class="grid2">
           <div>
-            <h4>Variables (valores enmascarados)</h4>
+            <h4>Variables (masked values)</h4>
             <pre><span class="p">ubctl</span> apps env set <span class="o">&lt;svc&gt;</span> DATABASE_URL <span class="s">"postgres://…"</span>
 <span class="p">ubctl</span> apps env ls <span class="o">&lt;svc&gt;</span>
 <span class="p">ubctl</span> apps env rm <span class="o">&lt;svc&gt;</span> DATABASE_URL</pre>
             <p style="font-size: 13.5px">
-              Cambiar variables marca el servicio como “needs redeploy” — no
-              redespliega solo.
+              Changing variables marks the service as “needs redeploy”; it does
+              not redeploy automatically.
             </p>
           </div>
           <div>
-            <h4>Dominios propios</h4>
-            <pre><span class="p">ubctl</span> apps domains add <span class="o">&lt;svc&gt;</span> app.ejemplo.com
+            <h4>Custom domains</h4>
+            <pre><span class="p">ubctl</span> apps domains add <span class="o">&lt;svc&gt;</span> app.example.com
 <span class="p">ubctl</span> apps domains ls <span class="o">&lt;svc&gt;</span>
-<span class="p">ubctl</span> apps domains rm <span class="o">&lt;svc&gt;</span> app.ejemplo.com</pre>
+<span class="p">ubctl</span> apps domains rm <span class="o">&lt;svc&gt;</span> app.example.com</pre>
             <p style="font-size: 13.5px">
-              Cada servicio ya trae una URL
+              Every service includes a URL at
               <code class="inline">&lt;slug&gt;.apps.cloud.unbroker.app</code>.
             </p>
           </div>
@@ -548,8 +547,8 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- TOKENS & ACCOUNT -->
     <section id="tokens">
       <div class="wrap">
-        <h2>Cuenta</h2>
-        <h3 class="title">Tokens, uso y organizaciones</h3>
+        <h2>Account</h2>
+        <h3 class="title">Tokens, usage, and organizations</h3>
         <div class="grid2">
           <div>
             <h4>API tokens</h4>
@@ -558,7 +557,7 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
 <span class="p">ubctl</span> tokens rm <span class="o">&lt;id&gt;</span></pre>
           </div>
           <div>
-            <h4>Uso &amp; organizaciones</h4>
+            <h4>Usage &amp; organizations</h4>
             <pre><span class="p">ubctl</span> account usage
 <span class="p">ubctl</span> account invoices
 <span class="p">ubctl</span> account activity
@@ -571,18 +570,18 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- RESELLER -->
     <section id="recursos">
       <div class="wrap">
-        <h2>Infraestructura</h2>
-        <h3 class="title">Recursos cloud</h3>
+        <h2>Infrastructure</h2>
+        <h3 class="title">Cloud resources</h3>
         <p>
-          Además de las apps (PaaS), <code class="inline">ubctl</code> maneja la
-          capa de recursos implementada por el control plane: máquinas y bases
-          de datos administradas.
+          In addition to apps (PaaS), <code class="inline">ubctl</code> manages
+          the control-plane-backed resource layer: virtual machines and managed
+          databases.
         </p>
         <table>
           <thead>
             <tr>
-              <th>Comando</th>
-              <th>Qué hace</th>
+              <th>Command</th>
+              <th>Operations</th>
             </tr>
           </thead>
           <tbody>
@@ -592,7 +591,7 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
             </tr>
             <tr>
               <td><code>ubctl db</code></td>
-              <td>ls · get · connection (credenciales) · rm</td>
+              <td>ls · get · connection (credentials) · rm</td>
             </tr>
           </tbody>
         </table>
@@ -602,48 +601,44 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
     <!-- FLAGS -->
     <section id="flags">
       <div class="wrap">
-        <h2>Referencia</h2>
-        <h3 class="title">Flags globales &amp; configuración</h3>
+        <h2>Reference</h2>
+        <h3 class="title">Global flags &amp; configuration</h3>
         <table>
           <thead>
             <tr>
               <th>Flag / variable</th>
-              <th>Descripción</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><code>--json</code></td>
-              <td>
-                Salida JSON cruda en cualquier comando de lectura (para
-                scripting).
-              </td>
+              <td>Raw JSON output for supported commands and scripting.</td>
             </tr>
             <tr>
               <td><code>--org &lt;id&gt;</code></td>
-              <td>
-                Actúa contra una organización concreta (<code>X-Org-Id</code>).
-              </td>
+              <td>Target a specific organization (<code>X-Org-Id</code>).</td>
             </tr>
             <tr>
               <td><code>--api-url &lt;url&gt;</code></td>
-              <td>Sobrescribe la URL base de la API.</td>
+              <td>Override the API base URL.</td>
             </tr>
             <tr>
               <td><code>UBCTL_TOKEN</code></td>
-              <td>Token sin guardarlo en disco (ideal para CI).</td>
+              <td>Use a token without saving it to disk (ideal for CI).</td>
             </tr>
             <tr>
               <td><code>UBCTL_API_URL</code></td>
-              <td>URL base por entorno.</td>
+              <td>Set the API base URL from the environment.</td>
             </tr>
           </tbody>
         </table>
         <div class="note">
-          <strong>Precedencia de configuración:</strong> flag
-          <span class="arrow">→</span> variable de entorno (<code class="inline"
+          <strong>Configuration precedence:</strong> flag
+          <span class="arrow">→</span> environment variable (<code
+            class="inline"
             >UBCTL_*</code
-          >) <span class="arrow">→</span> archivo
+          >) <span class="arrow">→</span> config file
           <code class="inline">~/.config/ubctl/config.json</code>
           <span class="arrow">→</span> default (<code class="inline"
             >https://api.unbroker.cloud</code
@@ -654,9 +649,9 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
 
     <footer>
       <div class="wrap">
-        ubctl · CLI oficial de Unbroker Cloud ·
+        ubctl · Official Unbroker Cloud CLI ·
         <a href="https://github.com/unbroker-app/ubctl">unbroker-app/ubctl</a>
-        · Repositorio público — todos los derechos reservados.
+        · Public repository — all rights reserved.
       </div>
     </footer>
   </body>
