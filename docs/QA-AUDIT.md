@@ -32,6 +32,22 @@ and CLI PR [ubctl#14](https://github.com/unbroker-app/ubctl/pull/14) were merged
   method, status class, counts, errors, and latency. Trace output was checked for
   token/header leakage and contained none.
 
+## v0.4.1 multi-account validation
+
+Completed on 2026-08-04 after fixing context replacement in
+[ubctl#16](https://github.com/unbroker-app/ubctl/pull/16).
+
+- Added `login --context <name>` to persist and select a validated account in
+  one atomic operation.
+- A plain login refuses to replace the selected context with a token belonging
+  to a different organization.
+- The saved organization now comes from the newly validated token instead of a
+  previously selected account.
+- Persistent-config E2E covers two organizations, switching in both directions,
+  identity verification, and rejection without config mutation.
+- 65/65 tests, type check, lint, build, PR CI, `main` CI, release publication,
+  installed-binary checksum, and live account switching passed.
+
 ## Scope
 
 - Static checks, unit tests, type checking, linting, and production build.

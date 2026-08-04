@@ -384,6 +384,7 @@ npm install -g <span class="p">@unbroker-app/ubctl</span>   <span class="c"># in
         </p>
         <pre><span class="p">ubctl</span> login                 <span class="c"># interactive hidden prompt</span>
 <span class="p">ubctl</span> login --token ub_live_… <span class="c"># pass it directly</span>
+<span class="p">ubctl</span> login --context personal <span class="c"># add or reauthenticate a named account</span>
 echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdin  <span class="c"># stdin for CI</span>
 
 <span class="p">ubctl</span> whoami                <span class="c"># confirm identity and active organization</span></pre>
@@ -393,6 +394,16 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           path, and suggested next commands. Automation can use
           <code class="inline">ubctl --json login --stdin</code> for structured
           JSON output only.
+        </p>
+        <p>
+          For multiple accounts, use
+          <code class="inline">ubctl login --context &lt;name&gt;</code> for
+          each account, list them with
+          <code class="inline">ubctl auth ls</code>, and select one with
+          <code class="inline">ubctl auth switch &lt;name&gt;</code>. Run
+          <code class="inline">ubctl whoami</code> after switching. Environment
+          variables such as <code class="inline">UBCTL_TOKEN</code> override the
+          selected context for that process.
         </p>
         <pre>
 ╭──────────────────────────────────────────╮
@@ -586,7 +597,8 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           <div>
             <h4>CLI operations</h4>
             <pre><span class="p">ubctl</span> doctor
-<span class="p">ubctl</span> auth save production
+<span class="p">ubctl</span> login --context production
+<span class="p">ubctl</span> auth ls
 <span class="p">ubctl</span> auth switch production
 <span class="p">ubctl</span> completion zsh</pre>
           </div>

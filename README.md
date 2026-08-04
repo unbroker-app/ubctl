@@ -121,6 +121,24 @@ ubctl auth ls
 ubctl auth switch personal
 ```
 
+Each context stores its own API URL, organization, and token in the same
+owner-only config file. Always use `login --context <name>` when adding another
+account. A plain `login` reauthenticates the selected context and refuses a
+token from a different organization, preventing accidental account replacement.
+
+Confirm the selected account after every switch:
+
+```bash
+ubctl auth ls
+ubctl auth switch work
+ubctl whoami
+```
+
+Environment variables have higher precedence than contexts. If `UBCTL_TOKEN`,
+`UBCTL_ORG`, or `UBCTL_API_URL` is set, it overrides the saved account for that
+process. `ubctl doctor` shows the effective configuration without printing the
+token.
+
 The token (plus API URL and active org) is written to
 `~/.config/ubctl/config.json` with `0600` permissions. To sign out:
 
@@ -338,6 +356,10 @@ Resolution order for every setting (highest precedence first):
 The token is deliberately **not** a flag — that keeps it out of your shell
 history and `ps` output. Use `login`, `UBCTL_TOKEN`, or stdin.
 
+Named contexts are selected with `ubctl auth switch <name>`. They participate at
+the saved-config level of this precedence order; flags and environment variables
+still override the selected context for a single process.
+
 **Global flags** (work on any command):
 
 | Flag                  | Description                                       |
@@ -413,7 +435,7 @@ ubctl tokens ls | create --name <name> [--scope read|read/write] | rm <id>
 ubctl account usage [--breakdown] [--month YYYY-MM] | charges | invoices | activity | bandwidth | alerts | cli-usage [--days 30]
 ubctl billing budget get | set --amount <usd> [--thresholds 50,80,100] | rm
 ubctl monitoring ls | alert-create --name --service --metric --compare --value [--window] | uptime-create --name --url | check <id> | rm <id>
-ubctl auth ls | save <name> | switch <name> | rm <name>
+ubctl login [--context <name>] | auth ls | save <name> | switch <name> | rm <name>
 ubctl doctor [--json] | completion bash|zsh|fish
 ubctl orgs                                   # list orgs you belong to
 ubctl orgs get <id> | billing <id>
