@@ -14,7 +14,11 @@ import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 import { age } from "../../util/format";
 import { CliError } from "../../util/errors";
-import { repositoryUrl, positiveInteger } from "../../util/validate";
+import {
+  portNumber,
+  repositoryUrl,
+  positiveInteger,
+} from "../../util/validate";
 import { sinceEpoch } from "../../util/time-input";
 import { openTunnel } from "../../util/tunnel";
 
@@ -99,36 +103,32 @@ export function servicesCommand(): Command {
     .description("Open a local tunnel to a database service")
     .addOption(
       new Option("--port <port>", "local TCP port (0 chooses a free port)")
-        .argParser((value) => positiveInteger(value, "port", 65535))
+        .argParser(portNumber)
         .default(0),
     )
-    .action(
-      async (id: string, opts: { port: number }, cmd: Command) => {
-        const { client } = authed(cmd);
-        const ticket = await client.post<TunnelTicket>(
-          `/apps/services/${id}/tunnels`,
-          {},
-        );
-        const tunnel = await openTunnel(ticket, opts.port);
-        const c = ticket.credentials;
-        const username = c.username
-          ? `${encodeURIComponent(c.username)}:`
-          : ":";
-        const uri = `${c.protocol}://${username}${encodeURIComponent(c.password)}@127.0.0.1:${tunnel.port}/${encodeURIComponent(c.database)}`;
-        print(`Tunnel ready on 127.0.0.1:${tunnel.port} — press Ctrl+C to stop.`);
-        print(`Connection URI: ${uri}`);
+    .action(async (id: string, opts: { port: number }, cmd: Command) => {
+      const { client } = authed(cmd);
+      const ticket = await client.post<TunnelTicket>(
+        `/apps/services/${id}/tunnels`,
+        {},
+      );
+      const tunnel = await openTunnel(ticket, opts.port);
+      const c = ticket.credentials;
+      const username = c.username ? `${encodeURIComponent(c.username)}:` : ":";
+      const uri = `${c.protocol}://${username}${encodeURIComponent(c.password)}@127.0.0.1:${tunnel.port}/${encodeURIComponent(c.database)}`;
+      print(`Tunnel ready on 127.0.0.1:${tunnel.port} — press Ctrl+C to stop.`);
+      print(`Connection URI: ${uri}`);
 
-        const stop = () => void tunnel.close();
-        process.once("SIGINT", stop);
-        process.once("SIGTERM", stop);
-        try {
-          await tunnel.closed;
-        } finally {
-          process.off("SIGINT", stop);
-          process.off("SIGTERM", stop);
-        }
-      },
-    );
+      const stop = () => void tunnel.close();
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+      try {
+        await tunnel.closed;
+      } finally {
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+      }
+    });
 
   withJson(
     services

@@ -411,13 +411,16 @@ on the consumer service. References resolve securely during deployment:
 
 ```bash
 # Service → service
-ubctl apps connect <consumer-service-id> --service <provider-service-id> --output url --env API_URL
+ubctl apps connect <consumer-service-id> --service <provider-service-id> --source-output url --env API_URL
+
+# Database image service → service (secure composite URI, as in the UI)
+ubctl apps connect <consumer-service-id> --service <database-service-id> --source-output connection --env DATABASE_URL
 
 # Managed database → service
-ubctl apps connect <consumer-service-id> --database <database-id> --output uri --env DATABASE_URL
+ubctl apps connect <consumer-service-id> --database <database-id> --source-output uri --env DATABASE_URL
 
 # Beacon → service
-ubctl apps connect <consumer-service-id> --beacon <beacon-id> --output secret --env BEACON_SECRET
+ubctl apps connect <consumer-service-id> --beacon <beacon-id> --source-output secret --env BEACON_SECRET
 
 ubctl apps connections <consumer-service-id>
 ubctl apps disconnect <consumer-service-id> DATABASE_URL

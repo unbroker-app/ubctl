@@ -65,6 +65,8 @@ export interface Service {
   repoUrl: string;
   branch: string;
   framework: Framework;
+  serviceType?: "repo" | "image" | "upload";
+  imageRef?: string | null;
   port: number;
   status: ServiceStatus;
   needsRedeploy: boolean;

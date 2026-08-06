@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   contextName,
+  portNumber,
   repositoryUrl,
   positiveInteger,
   positiveNumber,
@@ -24,6 +25,13 @@ test("positiveInteger validates and bounds integers", () => {
   assert.equal(positiveInteger("3", "nodes", 9), 3);
   for (const value of ["0", "10", "1.5", "abc", "-1"])
     assert.throws(() => positiveInteger(value, "nodes", 9));
+});
+
+test("portNumber accepts an ephemeral port and validates the TCP range", () => {
+  assert.equal(portNumber("0"), 0);
+  assert.equal(portNumber("5432"), 5432);
+  for (const value of ["-1", "1.5", "65536", "abc"])
+    assert.throws(() => portNumber(value));
 });
 
 test("positiveNumber accepts plain decimals and rejects alternate syntax", () => {
