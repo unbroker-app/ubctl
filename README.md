@@ -397,6 +397,32 @@ ubctl apps deploy <serviceId> [--wait] [--timeout <s>] | deployments <serviceId>
 
 Frameworks: `next`, `astro`, `node`, `react`, `vue`, `vite`, `static`.
 
+Database image services run on private cluster nodes. Connect from a local
+database client without downloading a separate tunnel script:
+
+```bash
+ubctl apps services connection <service-id>
+ubctl apps services tunnel <service-id> --port 5432
+# `connect` is an alias for `tunnel`; omit --port to choose a free local port.
+```
+
+Connect project nodes by assigning a provider output to an environment variable
+on the consumer service. References resolve securely during deployment:
+
+```bash
+# Service → service
+ubctl apps connect <consumer-service-id> --service <provider-service-id> --output url --env API_URL
+
+# Managed database → service
+ubctl apps connect <consumer-service-id> --database <database-id> --output uri --env DATABASE_URL
+
+# Beacon → service
+ubctl apps connect <consumer-service-id> --beacon <beacon-id> --output secret --env BEACON_SECRET
+
+ubctl apps connections <consumer-service-id>
+ubctl apps disconnect <consumer-service-id> DATABASE_URL
+```
+
 ### Beacon (realtime pub/sub)
 
 ```

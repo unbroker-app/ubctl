@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Command } from "commander";
 import { buildProgram } from "../program";
+import { connectionReference } from "./apps/connections";
 
 function find(name: string, of: Command): Command | undefined {
   return of.commands.find(
@@ -60,6 +61,46 @@ test("db (managed databases) exposes create/metrics/users/dbs", () => {
       assert.ok(find(c, g), `db ${group} ${c} should exist`);
     }
   }
+});
+
+test("app services exposes database connection and tunnel commands", () => {
+  const apps = find("apps", buildProgram())!;
+  const services = find("services", apps)!;
+  assert.ok(find("connection", services));
+  assert.ok(find("tunnel", services));
+});
+
+test("apps exposes node connection lifecycle commands", () => {
+  const apps = find("apps", buildProgram())!;
+  for (const command of ["connect", "disconnect", "connections"])
+    assert.ok(find(command, apps), `apps ${command} should exist`);
+});
+
+test("node connections build the UI-compatible reference tokens", () => {
+  assert.equal(
+    connectionReference({
+      env: "API_URL",
+      output: "url",
+      service: "backend",
+    }),
+    "${{services.backend.url}}",
+  );
+  assert.equal(
+    connectionReference({
+      env: "DATABASE_URL",
+      output: "uri",
+      database: "db_123",
+    }),
+    "${{databases.db_123.uri}}",
+  );
+  assert.equal(
+    connectionReference({
+      env: "BEACON_SECRET",
+      output: "secret",
+      beacon: "beacon-1",
+    }),
+    "${{beacons.beacon-1.secret}}",
+  );
 });
 
 test("github exposes installations/repos/branches", () => {
