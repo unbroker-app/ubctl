@@ -128,6 +128,20 @@ async function withApi(
       res.end(JSON.stringify({ envVar: { key: "KEY", maskedValue: "***" } }));
       return;
     }
+    if (req.method === "GET" && req.url === "/apps/services/svc_source") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          service: {
+            id: "svc_source",
+            name: "API",
+            slug: "api",
+            serviceType: "repo",
+          },
+        }),
+      );
+      return;
+    }
     if (
       req.method === "POST" &&
       req.url === "/apps/services/svc_test/domains"
@@ -607,6 +621,35 @@ test("invalid numeric options fail before an HTTP request", async () => {
       /timeout must be a positive decimal number/,
     );
     assert.equal(seen.length, 0);
+  });
+});
+
+test("apps connect resolves a provider id and writes the deploy-time reference", async () => {
+  await withApi(async (apiUrl, seen) => {
+    const result = await invoke(apiUrl, [
+      "apps",
+      "connect",
+      "svc_test",
+      "--service",
+      "svc_source",
+      "--source-output",
+      "url",
+      "--env",
+      "api_url",
+    ]);
+    assert.match(result.stdout, /Connected API_URL/);
+    assert.deepEqual(seen, [
+      {
+        method: "GET",
+        path: "/apps/services/svc_source",
+        body: undefined,
+      },
+      {
+        method: "POST",
+        path: "/apps/services/svc_test/env",
+        body: { key: "API_URL", value: "${{services.api.url}}" },
+      },
+    ]);
   });
 });
 

@@ -15,9 +15,12 @@ test("the apps command group is registered with its subcommands", () => {
   const names = apps.commands.map((c) => c.name()).sort();
   assert.deepEqual(names, [
     "cancel",
+    "connect",
+    "connections",
     "deploy",
     "deployment",
     "deployments",
+    "disconnect",
     "domains",
     "env",
     "projects",

@@ -2,6 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Command } from "commander";
 import { buildProgram } from "../program";
+import {
+  connectionReference,
+  imageServiceConnectionReference,
+} from "./apps/connections";
+import type { Service } from "../api/types";
 
 function find(name: string, of: Command): Command | undefined {
   return of.commands.find(
@@ -60,6 +65,98 @@ test("db (managed databases) exposes create/metrics/users/dbs", () => {
       assert.ok(find(c, g), `db ${group} ${c} should exist`);
     }
   }
+});
+
+test("app services exposes database connection and tunnel commands", () => {
+  const apps = find("apps", buildProgram())!;
+  const services = find("services", apps)!;
+  assert.ok(find("connection", services));
+  assert.ok(find("tunnel", services));
+});
+
+test("apps exposes node connection lifecycle commands", () => {
+  const apps = find("apps", buildProgram())!;
+  for (const command of ["connect", "disconnect", "connections"])
+    assert.ok(find(command, apps), `apps ${command} should exist`);
+});
+
+test("node connections build the UI-compatible reference tokens", () => {
+  assert.equal(
+    connectionReference({
+      env: "API_URL",
+      sourceOutput: "url",
+      service: "backend",
+    }),
+    "${{services.backend.url}}",
+  );
+  assert.equal(
+    connectionReference({
+      env: "DATABASE_URL",
+      sourceOutput: "uri",
+      database: "db_123",
+    }),
+    "${{databases.db_123.uri}}",
+  );
+  assert.equal(
+    connectionReference({
+      env: "BEACON_SECRET",
+      sourceOutput: "secret",
+      beacon: "beacon-1",
+    }),
+    "${{beacons.beacon-1.secret}}",
+  );
+  assert.equal(
+    connectionReference({
+      env: "TOKEN",
+      sourceOutput: "env.API_TOKEN",
+      service: "backend",
+    }),
+    "${{services.backend.env.API_TOKEN}}",
+  );
+  assert.throws(
+    () =>
+      connectionReference({
+        env: "BAD",
+        sourceOutput: "secret",
+        database: "db_123",
+      }),
+    /Invalid database output/,
+  );
+  assert.throws(
+    () => connectionReference({ env: "BAD", sourceOutput: "url" }),
+    /exactly one source/,
+  );
+});
+
+test("database image connections match the UI's secure composite references", () => {
+  const service = {
+    id: "svc-1",
+    name: "Postgres",
+    slug: "postgres",
+    serviceType: "image",
+    imageRef: "postgres:16",
+  } as Service;
+  assert.equal(
+    imageServiceConnectionReference(service),
+    "postgresql://postgres:${{services.postgres.env.POSTGRES_PASSWORD}}@${{services.postgres.host}}:${{services.postgres.port}}/postgres",
+  );
+  assert.equal(
+    imageServiceConnectionReference({
+      ...service,
+      name: "Valkey",
+      slug: "cache",
+      imageRef: "valkey/valkey:8",
+    }),
+    "redis://:${{services.cache.env.REDIS_PASSWORD}}@${{services.cache.host}}:${{services.cache.port}}/0",
+  );
+  assert.throws(
+    () =>
+      imageServiceConnectionReference({
+        ...service,
+        imageRef: "custom/database:latest",
+      }),
+    /not supported/,
+  );
 });
 
 test("github exposes installations/repos/branches", () => {

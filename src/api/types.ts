@@ -65,6 +65,8 @@ export interface Service {
   repoUrl: string;
   branch: string;
   framework: Framework;
+  serviceType?: "repo" | "image" | "upload";
+  imageRef?: string | null;
   port: number;
   status: ServiceStatus;
   needsRedeploy: boolean;
@@ -135,6 +137,30 @@ export interface ServicesResponse {
 }
 export interface ServiceResponse {
   service: Service;
+}
+export interface ServiceConnection {
+  protocol: string;
+  username: string;
+  password: string;
+  database: string;
+  host: string;
+  port: number;
+  uri: string;
+}
+export interface ServiceConnectionResponse {
+  connection: ServiceConnection;
+}
+export interface TunnelTicket {
+  ticket: string;
+  expiresAt: number;
+  url: string;
+  port: number;
+  credentials: {
+    protocol: string;
+    username: string;
+    password: string;
+    database: string;
+  };
 }
 export interface DeploymentsResponse {
   deployments: DeploymentSummary[];

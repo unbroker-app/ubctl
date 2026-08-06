@@ -30,11 +30,13 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "commander": "^13.1.0"
+    "commander": "^13.1.0",
+    "ws": "^8.21.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^22.15.3",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.1",
     "prettier": "^3.4.2",

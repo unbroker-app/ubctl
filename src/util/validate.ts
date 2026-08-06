@@ -24,6 +24,15 @@ export function positiveInteger(
   return parsed;
 }
 
+export function portNumber(value: string): number {
+  if (!/^\d+$/.test(value))
+    throw new InvalidArgumentError("port must be an integer");
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 65535)
+    throw new InvalidArgumentError("port must be between 0 and 65535");
+  return parsed;
+}
+
 export function positiveNumber(value: string, label: string): number {
   if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(value))
     throw new InvalidArgumentError(
