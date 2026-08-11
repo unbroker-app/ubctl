@@ -8,19 +8,20 @@ import type {
   LogsHistoryResponse,
   Framework,
   ServiceConnectionResponse,
-  TunnelTicket,
 } from "../../api/types";
 import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 import { age } from "../../util/format";
 import { CliError } from "../../util/errors";
 import {
+  integerRange,
   portNumber,
   repositoryUrl,
+  volumePath,
   positiveInteger,
 } from "../../util/validate";
 import { sinceEpoch } from "../../util/time-input";
-import { openTunnel } from "../../util/tunnel";
+import { runDatabaseTunnel } from "./database-tunnel";
 
 const FRAMEWORKS: Framework[] = [
   "next",
@@ -45,6 +46,8 @@ interface CreateOpts {
   outputDir?: string;
   rootDir?: string;
   githubInstallation?: number;
+  volumePath?: string;
+  volumeSize?: number;
 }
 
 interface UpdateOpts {
@@ -56,6 +59,7 @@ interface UpdateOpts {
   start?: string;
   imageRef?: string;
   autoDeploy?: string;
+  volumeSize?: number;
 }
 
 export function servicesCommand(): Command {
@@ -107,27 +111,7 @@ export function servicesCommand(): Command {
         .default(0),
     )
     .action(async (id: string, opts: { port: number }, cmd: Command) => {
-      const { client } = authed(cmd);
-      const ticket = await client.post<TunnelTicket>(
-        `/apps/services/${id}/tunnels`,
-        {},
-      );
-      const tunnel = await openTunnel(ticket, opts.port);
-      const c = ticket.credentials;
-      const username = c.username ? `${encodeURIComponent(c.username)}:` : ":";
-      const uri = `${c.protocol}://${username}${encodeURIComponent(c.password)}@127.0.0.1:${tunnel.port}/${encodeURIComponent(c.database)}`;
-      print(`Tunnel ready on 127.0.0.1:${tunnel.port} — press Ctrl+C to stop.`);
-      print(`Connection URI: ${uri}`);
-
-      const stop = () => void tunnel.close();
-      process.once("SIGINT", stop);
-      process.once("SIGTERM", stop);
-      try {
-        await tunnel.closed;
-      } finally {
-        process.off("SIGINT", stop);
-        process.off("SIGTERM", stop);
-      }
+      await runDatabaseTunnel(id, opts.port, cmd);
     });
 
   withJson(
@@ -182,6 +166,17 @@ export function servicesCommand(): Command {
       )
       .option("--output-dir <dir>", "static build output dir")
       .option("--root-dir <dir>", "monorepo subdir to build from")
+      .option(
+        "--volume-path <path>",
+        "persistent volume mount path",
+        volumePath,
+      )
+      .addOption(
+        new Option(
+          "--volume-size <gb>",
+          "persistent volume size in GiB",
+        ).argParser((v) => integerRange(v, "volume size", 10, 50)),
+      )
       .addOption(
         new Option(
           "--github-installation <id>",
@@ -203,6 +198,14 @@ export function servicesCommand(): Command {
         if (opts.port !== undefined) body.port = opts.port;
         if (opts.outputDir) body.outputDir = opts.outputDir;
         if (opts.rootDir) body.rootDir = opts.rootDir;
+        if ((opts.volumePath === undefined) !== (opts.volumeSize === undefined))
+          throw new CliError(
+            "A volume needs both --volume-path and --volume-size.",
+          );
+        if (opts.volumePath) {
+          body.volumePath = opts.volumePath;
+          body.volumeSizeGb = opts.volumeSize;
+        }
         if (opts.githubInstallation)
           body.githubInstallationId = opts.githubInstallation;
 
@@ -235,6 +238,12 @@ export function servicesCommand(): Command {
       .option("--start <cmd>", "start command override")
       .option("--image-ref <ref>", "image reference (image services)")
       .addOption(
+        new Option(
+          "--volume-size <gb>",
+          "grow persistent volume to GiB",
+        ).argParser((v) => integerRange(v, "volume size", 10, 50)),
+      )
+      .addOption(
         new Option("--auto-deploy <bool>", "push-to-deploy on/off").choices([
           "true",
           "false",
@@ -250,6 +259,7 @@ export function servicesCommand(): Command {
         if (opts.build) body.buildCommand = opts.build;
         if (opts.start) body.startCommand = opts.start;
         if (opts.imageRef) body.imageRef = opts.imageRef;
+        if (opts.volumeSize !== undefined) body.volumeSizeGb = opts.volumeSize;
         if (opts.autoDeploy) body.autoDeploy = opts.autoDeploy === "true";
         if (Object.keys(body).length === 0) {
           print("Nothing to update — pass at least one option.");
