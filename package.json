@@ -1,6 +1,6 @@
 {
   "name": "@unbroker-app/ubctl",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Official Unbroker Cloud CLI",
   "license": "UNLICENSED",
   "type": "module",
