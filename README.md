@@ -174,7 +174,7 @@ retries, diagnostics, and shell completion. See the complete
 | **Project**      | A group of services that share project-wide env vars.                     |
 | **Service**      | One deployable unit — a GitHub repo (built for you) or a prebuilt image.  |
 | **Deployment**   | One build+release of a service. You can follow it live and roll back.     |
-| **Database**     | A managed cluster (Postgres, MySQL, Redis, …) with users & logical DBs.   |
+| **Database**     | A managed cluster (`ubctl db`) or a self-hosted Apps service (`ubctl apps databases`). |
 | **Beacon**       | A realtime pub/sub project — channels you publish to and subscribe from.  |
 
 Most resources are scoped to the **active organization**. Override per command
@@ -243,6 +243,59 @@ ubctl apps projects manifest prj_123 --values > store.json   # include secret va
 ubctl apps projects import --file store.json --name "store-staging"
 ubctl apps projects duplicate prj_123 --name "store-copy" # clone within the org
 ubctl apps projects deploy-all prj_123                    # deploy every service, in order
+```
+
+### Self-hosted databases and persistent volumes
+
+Self-hosted databases run inside Apps as private image services. The template
+creates the official database image, its persistent volume, and a generated
+password in one operation:
+
+```bash
+# Supported engines: postgres, redis, mongodb, mysql
+ubctl apps databases create prj_123 \
+  --name orders-db \
+  --engine postgres \
+  --volume-size 10
+
+# Save the one-time credential output, then deploy the database
+ubctl apps deploy svc_db123 --wait
+ubctl apps databases ls
+ubctl apps databases connection svc_db123
+
+# Connect a local client through an authenticated encrypted tunnel.
+# Omit --port to let ubctl select a free local port.
+ubctl apps databases tunnel svc_db123 --port 5432
+```
+
+Persistent storage is also available to regular app services. Volumes cannot
+be detached or shrunk after provisioning; deleting the service removes its
+volume and data.
+
+```bash
+ubctl apps volumes attach svc_456 --path /app/data --size 10
+ubctl apps volumes resize svc_456 --size 20
+ubctl apps volumes ls
+
+# Or attach storage while creating a repo service:
+ubctl apps services create prj_123 --name worker \
+  --repo https://github.com/acme/worker --framework node \
+  --volume-path /app/data --volume-size 10
+```
+
+Volume backups use an S3-compatible destination:
+
+```bash
+export UBCTL_S3_ACCESS_KEY="..."
+export UBCTL_S3_SECRET_KEY="..."
+ubctl apps backups destinations create --name primary \
+  --endpoint https://s3.example.com --region us-east-1 --bucket app-backups \
+  --prefix unbroker
+ubctl apps backups schedule svc_db123 --destination dst_123 \
+  --cron "0 3 * * *" --retain 7
+ubctl apps backups run svc_db123
+ubctl apps backups ls svc_db123
+ubctl apps backups restore svc_db123 backup_123 --confirm orders-db
 ```
 
 ---
@@ -332,6 +385,10 @@ first and overrides the rest, so you can tweak one thing at a time.
 - Anything carrying **credentials** (`db connection`, `beacon channel`) is always
   emitted as JSON and never tabulated.
 
+- Backup destination credentials can be supplied through
+  `UBCTL_S3_ACCESS_KEY` and `UBCTL_S3_SECRET_KEY`, keeping them out of shell
+  history. Creation responses never echo those secrets.
+
 - ubctl exits **non-zero** on failure and prints a one-line error (no stack
   trace), so `set -e` scripts and CI fail cleanly. `deploy --wait` exits non-zero
   if the deployment fails.
@@ -386,10 +443,15 @@ full option list of anything below.
 ubctl apps projects ls | get <id> | create --name <name> | rename <id> --name <name> | rm <id>
 ubctl apps projects deploy-all <id> | manifest <id> [--values] | import --file <path> [--name <n>] | duplicate <id> --name <n>
 ubctl apps projects env ls <projectId> | set <projectId> <KEY> <VALUE> | rm <projectId> <KEY>
-ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [--branch --port --build --start --output-dir --root-dir --github-installation]
-ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --auto-deploy true|false]
+ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [--branch --port --build --start --output-dir --root-dir --github-installation --volume-path --volume-size]
+ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --volume-size --auto-deploy true|false]
 ubctl apps services security <id> --mode public|password|organization [--password <pw>]
 ubctl apps services rm <id> | logs <id> [--since <duration>] | metrics <id> [--since <duration>]
+ubctl apps databases ls | get <id> | create <projectId> --name --engine postgres|redis|mongodb|mysql [--volume-size <gb>]
+ubctl apps databases connection <id> | tunnel <id> [--port <local-port>]
+ubctl apps volumes ls | attach <serviceId> --path <absolute-path> --size <gb> | resize <serviceId> --size <gb>
+ubctl apps backups ls <serviceId> | schedule <serviceId> --destination <id> --cron <expr> [--retain <n>] | run <serviceId> | restore <serviceId> <backupId> --confirm <serviceName>
+ubctl apps backups destinations ls | create --name --endpoint --region --bucket [--prefix --access-key --secret-key] | rm <id>
 ubctl apps env ls <serviceId> | set <serviceId> <KEY> <VALUE> | rm <serviceId> <KEY>
 ubctl apps domains ls <serviceId> | status <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
 ubctl apps deploy <serviceId> [--wait] [--timeout <s>] | deployments <serviceId> | deployment <id> [--log] | cancel <deploymentId> | rollback <serviceId> <deploymentId>

@@ -62,11 +62,14 @@ export interface Service {
   projectId: string;
   name: string;
   slug: string;
-  repoUrl: string;
-  branch: string;
-  framework: Framework;
+  repoUrl: string | null;
+  branch: string | null;
+  framework: Framework | null;
   serviceType?: "repo" | "image" | "upload";
   imageRef?: string | null;
+  host: string;
+  volumePath?: string | null;
+  volumeSizeGb?: number | null;
   port: number;
   status: ServiceStatus;
   needsRedeploy: boolean;
@@ -161,6 +164,47 @@ export interface TunnelTicket {
     password: string;
     database: string;
   };
+}
+export interface SelfHostedDatabaseResponse {
+  service: Service;
+  credentials: { key: string; value: string }[];
+}
+export interface BackupDestination {
+  id: string;
+  name: string;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  prefix: string;
+  hasCredentials: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+export interface BackupSchedule {
+  id: string;
+  serviceId: string;
+  destinationId: string;
+  cron: string;
+  retentionCount: number;
+  enabled: boolean;
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+}
+export interface BackupRun {
+  id: string;
+  serviceId: string;
+  destinationId: string;
+  sourceBackupId: string | null;
+  operation: "backup" | "restore";
+  trigger: "manual" | "scheduled";
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  engine: "postgres" | "mysql" | "mongodb" | "redis" | "volume";
+  objectKey: string | null;
+  sizeBytes: number | null;
+  log: string;
+  createdAt: number;
+  startedAt: number | null;
+  finishedAt: number | null;
 }
 export interface DeploymentsResponse {
   deployments: DeploymentSummary[];

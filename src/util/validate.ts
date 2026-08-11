@@ -24,6 +24,30 @@ export function positiveInteger(
   return parsed;
 }
 
+export function integerRange(
+  value: string,
+  label: string,
+  min: number,
+  max: number,
+): number {
+  if (!/^\d+$/.test(value))
+    throw new InvalidArgumentError(`${label} must be an integer`);
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max)
+    throw new InvalidArgumentError(
+      `${label} must be between ${min} and ${max}`,
+    );
+  return parsed;
+}
+
+export function volumePath(value: string): string {
+  if (!/^\/[A-Za-z0-9._/-]+$/.test(value) || value.split("/").includes(".."))
+    throw new InvalidArgumentError(
+      "volume path must be an absolute container path without '..' segments",
+    );
+  return value;
+}
+
 export function portNumber(value: string): number {
   if (!/^\d+$/.test(value))
     throw new InvalidArgumentError("port must be an integer");

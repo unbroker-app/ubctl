@@ -2,8 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   contextName,
+  integerRange,
   portNumber,
   repositoryUrl,
+  volumePath,
   positiveInteger,
   positiveNumber,
 } from "./validate";
@@ -25,6 +27,22 @@ test("positiveInteger validates and bounds integers", () => {
   assert.equal(positiveInteger("3", "nodes", 9), 3);
   for (const value of ["0", "10", "1.5", "abc", "-1"])
     assert.throws(() => positiveInteger(value, "nodes", 9));
+});
+
+test("integerRange enforces both bounds", () => {
+  assert.equal(integerRange("10", "volume size", 10, 50), 10);
+  assert.equal(integerRange("50", "volume size", 10, 50), 50);
+  assert.throws(() => integerRange("9", "volume size", 10, 50), /10 and 50/);
+  assert.throws(() => integerRange("51", "volume size", 10, 50), /10 and 50/);
+});
+
+test("volumePath accepts safe absolute paths only", () => {
+  assert.equal(
+    volumePath("/var/lib/postgresql/data"),
+    "/var/lib/postgresql/data",
+  );
+  for (const value of ["data", "/data/../secret", "/data path", "/"])
+    assert.throws(() => volumePath(value), /absolute container path/);
 });
 
 test("portNumber accepts an ephemeral port and validates the TCP range", () => {

@@ -26,10 +26,11 @@ async function withApi(
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(Buffer.from(chunk));
     const raw = Buffer.concat(chunks).toString();
+    const parsedBody: unknown = raw ? JSON.parse(raw) : undefined;
     seen.push({
       method: req.method ?? "",
       path: req.url ?? "",
-      body: raw ? JSON.parse(raw) : undefined,
+      body: parsedBody,
     });
     if (req.url === "/account") {
       res.writeHead(200, { "content-type": "application/json" });
@@ -102,13 +103,104 @@ async function withApi(
       req.url === "/apps/projects/prj_test/services"
     ) {
       res.writeHead(201, { "content-type": "application/json" });
+      const template =
+        typeof parsedBody === "object" &&
+        parsedBody !== null &&
+        "type" in parsedBody &&
+        parsedBody.type === "template";
+      res.end(
+        JSON.stringify(
+          template
+            ? {
+                service: {
+                  id: "svc_db",
+                  name: "orders-db",
+                  serviceType: "image",
+                  imageRef: "postgres:16",
+                  volumePath: "/var/lib/postgresql/data",
+                  volumeSizeGb: 10,
+                },
+                credentials: [
+                  { key: "POSTGRES_PASSWORD", value: "one-time-secret" },
+                ],
+              }
+            : {
+                service: {
+                  id: "svc_test",
+                  name: "test",
+                  url: "https://test.example",
+                  routed: true,
+                },
+              },
+        ),
+      );
+      return;
+    }
+    if (req.method === "PATCH" && req.url === "/apps/services/svc_test") {
+      const patch = parsedBody as {
+        volumePath?: string;
+        volumeSizeGb?: number;
+      };
+      res.writeHead(200, { "content-type": "application/json" });
       res.end(
         JSON.stringify({
           service: {
             id: "svc_test",
             name: "test",
-            url: "https://test.example",
-            routed: true,
+            status: "stopped",
+            volumePath: patch.volumePath ?? "/app/data",
+            volumeSizeGb: patch.volumeSizeGb,
+          },
+        }),
+      );
+      return;
+    }
+    if (req.method === "POST" && req.url === "/apps/backup-destinations") {
+      res.writeHead(201, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          destination: {
+            id: "dst_test",
+            name: "primary",
+            endpoint: "https://s3.example.test",
+            region: "us-east-1",
+            bucket: "backups",
+            prefix: "unbroker",
+            hasCredentials: true,
+          },
+        }),
+      );
+      return;
+    }
+    if (
+      req.method === "PUT" &&
+      req.url === "/apps/services/svc_db/backups/schedule"
+    ) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          schedule: {
+            id: "sch_test",
+            serviceId: "svc_db",
+            destinationId: "dst_test",
+            cron: "0 3 * * *",
+            retentionCount: 7,
+            enabled: true,
+          },
+        }),
+      );
+      return;
+    }
+    if (req.method === "POST" && req.url === "/apps/services/svc_db/backups") {
+      res.writeHead(202, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          run: {
+            id: "bak_test",
+            serviceId: "svc_db",
+            operation: "backup",
+            status: "queued",
+            engine: "postgres",
           },
         }),
       );
@@ -675,6 +767,144 @@ test("service creation accepts supported repository hosts and worker framework",
       branch: "main",
       framework: "worker",
     });
+  });
+});
+
+test("self-hosted database, volume and backup commands use the production API contracts", async () => {
+  await withApi(async (apiUrl, seen) => {
+    const created = await invoke(apiUrl, [
+      "apps",
+      "databases",
+      "create",
+      "prj_test",
+      "--name",
+      "orders-db",
+      "--engine",
+      "postgres",
+      "--volume-size",
+      "10",
+      "--json",
+    ]);
+    assert.equal(
+      JSON.parse(created.stdout).credentials[0].value,
+      "one-time-secret",
+    );
+
+    await invoke(apiUrl, [
+      "apps",
+      "volumes",
+      "attach",
+      "svc_test",
+      "--path",
+      "/app/data",
+      "--size",
+      "10",
+      "--json",
+    ]);
+    await invoke(apiUrl, [
+      "apps",
+      "backups",
+      "destinations",
+      "create",
+      "--name",
+      "primary",
+      "--endpoint",
+      "https://s3.example.test",
+      "--region",
+      "us-east-1",
+      "--bucket",
+      "backups",
+      "--access-key",
+      "access",
+      "--secret-key",
+      "secret",
+      "--json",
+    ]);
+    await invoke(apiUrl, [
+      "apps",
+      "backups",
+      "schedule",
+      "svc_db",
+      "--destination",
+      "dst_test",
+      "--cron",
+      "0 3 * * *",
+      "--retain",
+      "7",
+      "--json",
+    ]);
+    await invoke(apiUrl, ["apps", "backups", "run", "svc_db", "--json"]);
+
+    assert.deepEqual(seen, [
+      {
+        method: "POST",
+        path: "/apps/projects/prj_test/services",
+        body: {
+          type: "template",
+          template: "postgres",
+          name: "orders-db",
+          volumeSizeGb: 10,
+        },
+      },
+      {
+        method: "PATCH",
+        path: "/apps/services/svc_test",
+        body: { volumePath: "/app/data", volumeSizeGb: 10 },
+      },
+      {
+        method: "POST",
+        path: "/apps/backup-destinations",
+        body: {
+          name: "primary",
+          endpoint: "https://s3.example.test",
+          region: "us-east-1",
+          bucket: "backups",
+          prefix: "unbroker",
+          accessKeyId: "access",
+          secretAccessKey: "secret",
+        },
+      },
+      {
+        method: "PUT",
+        path: "/apps/services/svc_db/backups/schedule",
+        body: {
+          destinationId: "dst_test",
+          cron: "0 3 * * *",
+          retentionCount: 7,
+          enabled: true,
+        },
+      },
+      {
+        method: "POST",
+        path: "/apps/services/svc_db/backups",
+        body: {},
+      },
+    ]);
+  });
+});
+
+test("volume commands reject sizes outside the platform limits before HTTP", async () => {
+  await withApi(async (apiUrl, seen) => {
+    await assert.rejects(
+      invoke(apiUrl, [
+        "apps",
+        "databases",
+        "create",
+        "prj_test",
+        "--name",
+        "db",
+        "--engine",
+        "postgres",
+        "--volume-size",
+        "9",
+      ]),
+      /between 10 and 50/,
+    );
+    await assert.rejects(
+      invoke(apiUrl, ["apps", "volumes", "resize", "svc_test", "--size", "51"]),
+      /between 10 and 50/,
+    );
+    assert.equal(seen.length, 0);
   });
 });
 

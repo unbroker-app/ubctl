@@ -11,6 +11,9 @@ import {
   cancelDeploymentCommand,
 } from "./deployments";
 import { connectionsCommands } from "./connections";
+import { databasesCommand } from "./databases";
+import { volumesCommand } from "./volumes";
+import { backupsCommand } from "./backups";
 
 /** The `apps` command group — the PaaS surface (projects, services, deploys). */
 export function appsCommand(): Command {
@@ -22,6 +25,9 @@ export function appsCommand(): Command {
   apps.addCommand(servicesCommand());
   apps.addCommand(envCommand());
   apps.addCommand(domainsCommand());
+  apps.addCommand(databasesCommand());
+  apps.addCommand(volumesCommand());
+  apps.addCommand(backupsCommand());
   apps.addCommand(deployCommand());
   apps.addCommand(deploymentsCommand());
   apps.addCommand(deploymentCommand());
