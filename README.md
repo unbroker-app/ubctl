@@ -166,6 +166,20 @@ privacy-preserving CLI usage analytics, named contexts, request tracing, safe
 retries, diagnostics, and shell completion. See the complete
 [observability and operations guide](docs/OBSERVABILITY.md).
 
+## Agent skill
+
+The repository includes an Agent Skills-compatible `ubctl-ops` skill for Codex,
+Claude Code, and other agents that support the open `SKILL.md` format. Codex
+discovers it from `.agents/skills/ubctl-ops`; Claude Code discovers the same
+skill through `.claude/skills/ubctl-ops`. Agents that do not auto-discover skills
+can follow the pointer in `AGENTS.md` or read the canonical `SKILL.md` directly.
+
+Ask the agent to use `ubctl` or invoke the skill explicitly (`$ubctl-ops` in
+Codex or `/ubctl-ops` in Claude Code). The skill teaches resource discovery,
+safe authentication, JSON automation, deployment verification, and secret-aware
+operations while treating the installed command's `--help` as the current source
+of truth.
+
 ## Core concepts
 
 | Concept          | What it is                                                                |
