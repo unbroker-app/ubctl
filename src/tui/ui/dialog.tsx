@@ -31,6 +31,13 @@ export interface DialogContext {
    * return true when handled. Reset on every replace/clear.
    */
   onEscape(handler: (() => boolean) | undefined): void;
+  /**
+   * While busy (e.g. a save in flight) user-initiated closes are ignored, so
+   * the outcome of the request is never lost or misreported.
+   */
+  setBusy(busy: boolean): void;
+  /** A close the user asked for (esc, ctrl+c, backdrop click). */
+  dismiss(): void;
 }
 
 const ctx = createContext<DialogContext>();
@@ -49,12 +56,22 @@ export function DialogProvider(props: ParentProps) {
   const dimensions = useTerminalDimensions();
 
   let escape: (() => boolean) | undefined;
+  let busy = false;
   const value: DialogContext = {
     onEscape(handler) {
       escape = handler;
     },
+    setBusy(next) {
+      busy = next;
+    },
+    dismiss() {
+      if (busy) return;
+      if (escape?.()) return;
+      value.clear();
+    },
     replace(element, options) {
       escape = undefined;
+      busy = false;
       for (const item of store.stack) item.onClose?.();
       setStore("stack", [
         { element, size: options?.size ?? "medium", onClose: options?.onClose },
@@ -62,6 +79,7 @@ export function DialogProvider(props: ParentProps) {
     },
     clear() {
       escape = undefined;
+      busy = false;
       for (const item of store.stack) item.onClose?.();
       setStore("stack", []);
     },
@@ -74,8 +92,7 @@ export function DialogProvider(props: ParentProps) {
     if (!value.open) return;
     if (key.name === "escape") {
       key.preventDefault();
-      if (escape?.()) return;
-      value.clear();
+      value.dismiss();
     }
   });
 
@@ -96,7 +113,7 @@ export function DialogProvider(props: ParentProps) {
             alignItems="center"
             paddingTop={Math.floor(dimensions().height / 5)}
             backgroundColor={theme.overlay}
-            onMouseUp={() => value.clear()}
+            onMouseUp={() => value.dismiss()}
           >
             <box
               width={width(top().size)}

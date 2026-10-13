@@ -35,7 +35,7 @@ export function Overview() {
   });
 
   const counts = createMemo(() => {
-    const list = services.data.latest?.services ?? [];
+    const list = services.value()?.services ?? [];
     const by = (status: string) =>
       list.filter((s) => s.status === status).length;
     return {
@@ -52,11 +52,11 @@ export function Overview() {
         <box flexDirection="row" columnGap={2} flexWrap="wrap">
           <Stat
             label="Projects"
-            value={String(projects.data.latest?.projects.length ?? "…")}
+            value={String(projects.value()?.projects.length ?? "…")}
           />
           <Stat
             label="Services"
-            value={services.data.latest ? String(counts().total) : "…"}
+            value={services.value() ? String(counts().total) : "…"}
             detail={`${counts().running} running`}
           />
           <Stat
@@ -66,14 +66,17 @@ export function Overview() {
               counts().building ? `${counts().building} building` : undefined
             }
           />
-          <Show when={traffic.data.latest}>
+          <Show when={traffic.value()}>
             {(t: Accessor<TrafficOverview>) => {
-              const k = trafficKpis(t());
+              // A getter, not a snapshot: this callback runs only once.
+              const k = createMemo(() => trafficKpis(t()));
               return (
                 <>
                   <Stat
                     label="Visitors 24h"
-                    value={k.visitors === null ? "n/a" : compact(k.visitors)}
+                    value={
+                      k().visitors === null ? "n/a" : compact(k().visitors)
+                    }
                     detail={sparkline(
                       t().buckets.map((b) => b.uniques),
                       16,
@@ -81,7 +84,7 @@ export function Overview() {
                   />
                   <Stat
                     label="Requests 24h"
-                    value={compact(k.requests)}
+                    value={compact(k().requests)}
                     detail={sparkline(
                       t().buckets.map((b) => b.requests),
                       16,
@@ -89,7 +92,7 @@ export function Overview() {
                   />
                   <Stat
                     label="5xx · p95"
-                    value={`${percent(k.errorRate5xx)} · ${millis(k.p95)}`}
+                    value={`${percent(k().errorRate5xx)} · ${millis(k().p95)}`}
                   />
                 </>
               );
@@ -99,7 +102,7 @@ export function Overview() {
       </Panel>
       <box flexDirection="row" gap={1} flexGrow={1}>
         <Panel title="Services" flexGrow={1} hint="2 to manage">
-          <Loaded resource={services.data}>
+          <Loaded request={services}>
             {(data) => (
               <box>
                 <For each={data.services.slice(0, 14)}>
@@ -132,7 +135,7 @@ export function Overview() {
           </Loaded>
         </Panel>
         <Panel title="Recent activity" flexGrow={1}>
-          <Loaded resource={activity.data}>
+          <Loaded request={activity}>
             {(data) => (
               <box>
                 <For each={data.activity.slice(0, 14)}>

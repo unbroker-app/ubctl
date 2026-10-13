@@ -12,13 +12,20 @@ import { age, duration } from "../../util/format";
 import { positiveNumber } from "../../util/validate";
 import type { ApiClient } from "../../api/client";
 import {
-  canPrompt,
+  Cancelled,
   followDeploy,
+  interactiveNow,
   serviceId as resolveService,
 } from "../../interactive";
 import { color, statusText } from "../../util/color";
 
-const TERMINAL: DeploymentStatus[] = ["live", "failed", "superseded"];
+const FAILED: DeploymentStatus[] = ["failed", "cancelled"];
+const TERMINAL: DeploymentStatus[] = [
+  "live",
+  "failed",
+  "superseded",
+  "cancelled",
+];
 
 /** `ubctl apps deploy [serviceId] [--wait | --detach]` */
 export function deployCommand(): Command {
@@ -51,6 +58,8 @@ export function deployCommand(): Command {
           await runDeploy(client, serviceId, {
             wait: opts.wait,
             detach: opts.detach,
+            // Picking the service means a person is driving: follow live.
+            live: !serviceArg,
             timeoutMs: opts.timeout * 1000,
             json: ctx.json,
           });
@@ -61,9 +70,14 @@ export function deployCommand(): Command {
 
 /**
  * Queue a deployment and, with `wait`, follow it to a terminal state. Shared
- * by `apps deploy` and `apps services scale --deploy`; throws on failure so
- * the process exits non-zero. In an interactive terminal it follows live
- * (build log streaming above a progress footer) unless `detach` is set.
+ * by `apps deploy`, `apps scale --deploy` and the interactive flows; throws
+ * when the wait doesn't end in success so the process exits non-zero.
+ *
+ * At an interactive terminal the wait is shown live (build log streaming
+ * above a progress footer). That happens for `--wait`, or with `live` when a
+ * person drove the flow (picked the service, the create wizard, the scale
+ * editor). A plain `apps deploy <id>` still queues and returns, as scripts
+ * expect.
  */
 export async function runDeploy(
   client: ApiClient,
@@ -71,6 +85,8 @@ export async function runDeploy(
   opts: {
     wait?: boolean;
     detach?: boolean;
+    /** Follow live even without --wait (interactive flows). */
+    live?: boolean;
     timeoutMs: number;
     json: boolean;
   },
@@ -80,9 +96,8 @@ export async function runDeploy(
     {},
   );
 
-  if (!opts.detach && canPrompt(opts)) {
-    // Following live is the default for humans; without --wait the user can
-    // stay as long as they like (30 min cap), with --wait --timeout applies.
+  const follow = !opts.detach && (opts.wait || opts.live);
+  if (follow && (await interactiveNow(opts))) {
     const label = await client
       .get<ServiceResponse>(`/apps/services/${serviceId}`)
       .then((r) => r.service.name)
@@ -93,19 +108,35 @@ export async function runDeploy(
       label,
       opts.wait ? opts.timeoutMs : 30 * 60_000,
     );
-    if (result.kind === "detached") {
-      print(
-        `${color.muted("…")} Detached — ${deployment.id} keeps running. Check it with: ubctl apps deployment ${deployment.id}`,
+    const check = `ubctl apps deployment ${deployment.id}`;
+    if (result.kind === "error")
+      throw new CliError(
+        `following ${deployment.id} failed: ${result.message}`,
       );
+    if (result.kind === "detached") {
+      const last = result.deployment?.status ?? deployment.status;
+      if (result.reason === "timeout")
+        throw new CliError(
+          `timed out waiting for deployment ${deployment.id} (last: ${last})`,
+        );
+      print(
+        `${color.muted("…")} Stopped following — ${deployment.id} keeps running (${last}). Check it with: ${check}`,
+      );
+      // Leaving a --wait early must not read as success to whatever runs next.
+      if (result.reason === "interrupt") throw new Cancelled();
+      if (opts.wait)
+        throw new CliError(
+          `detached before deployment ${deployment.id} finished`,
+        );
       return;
     }
     const final = result.deployment;
     const took = duration(final.createdAt, final.finishedAt);
-    if (final.status === "failed") {
+    if (FAILED.includes(final.status)) {
       print(
-        `${color.error("✘")} Deployment ${final.id} ${statusText("failed")} after ${took}`,
+        `${color.error("✘")} Deployment ${final.id} ${statusText(final.status)} after ${took}`,
       );
-      throw new CliError("deployment failed");
+      throw new CliError(`deployment ${final.status}`);
     }
     print(
       `${color.success("✔")} Deployment ${final.id} ${statusText(final.status)} in ${took}`,
@@ -116,7 +147,9 @@ export async function runDeploy(
   if (!opts.wait) {
     if (opts.json) return printJson(deployment);
     print(`Queued deployment ${deployment.id} (${deployment.status})`);
-    print(`Follow it with: ubctl apps deployment ${deployment.id} --log`);
+    print(
+      `Follow it with: ubctl apps deployment ${deployment.id} --log (or deploy with --wait)`,
+    );
     return;
   }
 
@@ -128,10 +161,10 @@ export async function runDeploy(
       final.finishedAt,
     )})`,
   );
-  if (final.status === "failed") {
+  if (FAILED.includes(final.status)) {
     print("--- build log (tail) ---");
     print(tail(final.buildLog, 20));
-    throw new CliError("deployment failed");
+    throw new CliError(`deployment ${final.status}`);
   }
 }
 

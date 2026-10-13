@@ -3,6 +3,7 @@ import type { MetricRange, UsageResponse } from "../../api/types";
 import {
   fleetResources,
   serviceResources,
+  seriesPeak,
   seriesValues,
   usageTotals,
   type LiveMetrics,
@@ -124,7 +125,7 @@ export function serviceResourcesCommand(): Command {
             for (const [label, name, fmt] of rows) {
               const values = seriesValues(series, name);
               if (values.length === 0) continue;
-              const peak = Math.max(...values);
+              const peak = seriesPeak(series, name) ?? Math.max(...values);
               const avg = values.reduce((a, b) => a + b, 0) / values.length;
               print(
                 `  ${label.padEnd(9)}${sparkline(values, 40)}  avg ${fmt(avg)} · peak ${fmt(peak)}`,

@@ -19,6 +19,9 @@ export async function openServicePicker(
     api.client.get<ProjectsResponse>("/apps/projects"),
   ]);
   const projectName = new Map(projects.map((p) => [p.id, p.name]));
+  // The lists loaded asynchronously: if the user opened another dialog in
+  // the meantime, don't replace it.
+  if (dialog.open) return;
   dialog.replace(() => (
     <DialogSelect
       title="Open service"
@@ -78,6 +81,7 @@ export async function openScopePicker(
       value: { scope: { serviceId: s.id }, label: s.name },
     })),
   ];
+  if (dialog.open) return;
   dialog.replace(() => (
     <DialogSelect
       title="Analytics scope"

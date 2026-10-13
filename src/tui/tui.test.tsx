@@ -36,7 +36,7 @@ async function mount(
         reload={async () => fixtureSession(overrides, seen)}
       />
     ),
-    { width: 130, height: 44 },
+    { width: 130, height: 44, exitOnCtrlC: false },
   );
   await settle();
   return setup;
@@ -56,6 +56,7 @@ async function press(...keys: string[]) {
     else if (key === "backspace") setup!.mockInput.pressBackspace();
     else if (key === "esc") setup!.mockInput.pressEscape();
     else if (key === "D") setup!.mockInput.pressKey("d", { shift: true });
+    else if (key === "ctrl+p") setup!.mockInput.pressKey("p", { ctrl: true });
     else setup!.mockInput.pressKey(key);
     await settle();
   }
@@ -139,4 +140,28 @@ test("service detail shows live usage against limits", async () => {
   expect(screen).toContain("autoscale 2-3 @ 70% CPU");
   expect(screen).toContain("storefront-7f9c-abcde");
   expect(screen).toContain("180m / 500m");
+});
+
+test("ctrl+c closes an open dialog instead of quitting", async () => {
+  await mount();
+  await press("ctrl+p");
+  expect(frame()).toContain("Commands");
+  setup!.mockInput.pressCtrlC();
+  await settle();
+  expect(frame()).not.toContain("Type a command");
+  expect(setup!.renderer.isDestroyed).toBe(false);
+});
+
+test("esc does not close the scale editor while a save is in flight", async () => {
+  const seen: RecordedRequest[] = [];
+  await mount({ __delay_PATCH: 400 }, seen);
+  await press("2", "down", "down", "s", "enter", "backspace");
+  await setup!.mockInput.typeText("3");
+  await press("enter", "a", "esc");
+  expect(frame()).toContain("Scale storefront");
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  await settle();
+  // The save finished and closed the editor itself.
+  expect(frame()).not.toContain("Scale storefront");
+  expect(seen.filter((r) => r.method === "PATCH").length).toBe(1);
 });

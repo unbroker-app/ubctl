@@ -69,14 +69,15 @@ export function useTheme(): Theme {
 /** Map an API status string onto a semantic color. */
 export function statusColor(theme: Theme, status: string | undefined): RGBA {
   const value = (status ?? "").toLowerCase();
+  // Failures first: "unhealthy" and "inactive" contain "healthy"/"active".
+  if (/(fail|error|crash|unhealthy|degraded|cancel|inactive)/.test(value))
+    return theme.error;
   if (
     /(running|ready|active|live|healthy|succeeded|success|deployed|online)/.test(
       value,
     )
   )
     return theme.success;
-  if (/(fail|error|crash|unhealthy|degraded|cancel)/.test(value))
-    return theme.error;
   if (
     /(build|deploy|pending|queued|starting|provision|creating|progress|restoring)/.test(
       value,

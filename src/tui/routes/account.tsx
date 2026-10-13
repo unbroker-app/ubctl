@@ -18,7 +18,7 @@ export function Account() {
   return (
     <RouteScroll>
       <Panel title="Current billing cycle">
-        <Loaded resource={charges.data}>
+        <Loaded request={charges}>
           {(data) => (
             <box gap={1}>
               <Fields
@@ -55,7 +55,7 @@ export function Account() {
         </Loaded>
       </Panel>
       <Panel title="Invoices" flexGrow={1}>
-        <Loaded resource={invoices.data}>
+        <Loaded request={invoices}>
           {(data) => (
             <box>
               <For each={data.invoices.slice(0, 10)}>

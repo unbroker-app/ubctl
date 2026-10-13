@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core";
-import { useKeyboard } from "@opentui/solid";
+import { useKeyboard, usePaste } from "@opentui/solid";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { useTheme } from "../context/theme";
 import { fuzzyFilter } from "../lib/fuzzy";
@@ -27,6 +27,18 @@ export interface SelectOptions<T> {
 }
 
 const VISIBLE = 8;
+
+/** Pasted text as one line: terminals deliver a paste as a single event. */
+export function pastedText(bytes: Uint8Array): string {
+  return (
+    new TextDecoder()
+      .decode(bytes)
+      .replace(/[\r\n\t]+/g, " ")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f]/g, "")
+      .trim()
+  );
+}
 
 function isPrintable(name: string, sequence: string): boolean {
   if (name === "space") return true;
@@ -83,6 +95,10 @@ export function Select<T>(props: {
       setFilter((f) => f + (key.name === "space" ? " " : key.sequence));
       setCursor(0);
     }
+  });
+  usePaste((event) => {
+    setFilter((f) => f + pastedText(event.bytes));
+    setCursor(0);
   });
 
   return (
@@ -171,6 +187,10 @@ export function Input(props: {
       setValue((v) => v + (key.name === "space" ? " " : key.sequence));
       setError(undefined);
     }
+  });
+  usePaste((event) => {
+    setValue((v) => v + pastedText(event.bytes));
+    setError(undefined);
   });
 
   const shown = () =>

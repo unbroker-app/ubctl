@@ -12,6 +12,7 @@ async function main(): Promise<void> {
     process.argv.length === 2 &&
     process.stdout.isTTY &&
     process.stdin.isTTY &&
+    !process.env.CI &&
     tuiSupported() &&
     resolveContext({}).token
   )

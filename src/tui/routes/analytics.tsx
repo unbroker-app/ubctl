@@ -22,6 +22,7 @@ import { matches } from "../lib/keys";
 import { useDialog } from "../ui/dialog";
 import { Loaded, Panel, RouteScroll, Stat } from "../ui/panel";
 import { openScopePicker, type ScopeChoice } from "../ui/pickers";
+import { useToast } from "../ui/toast";
 
 /** Breakdown panels, paired like the dashboard's tabs. */
 const PANELS: { title: string; dimensions: TrafficDimension[] }[] = [
@@ -43,6 +44,7 @@ export function Analytics(props: { initialScope?: ScopeChoice }) {
   const theme = useTheme();
   const api = useApi();
   const dialog = useDialog();
+  const toast = useToast();
   const dimensions = useTerminalDimensions();
   const [scope, setScope] = createSignal<ScopeChoice>(
     props.initialScope ?? { scope: {}, label: "All projects" },
@@ -71,7 +73,7 @@ export function Analytics(props: { initialScope?: ScopeChoice }) {
     else if (matches(key, "c")) setSeries((i) => (i + 1) % CHART_SERIES.length);
     else if (matches(key, "b")) setVariant((i) => i + 1);
     else if (matches(key, "p"))
-      void openScopePicker(dialog, api, scope(), setScope);
+      void openScopePicker(dialog, api, scope(), setScope).catch(toast.error);
   });
 
   const chartWidth = () => Math.max(20, dimensions().width - 30);
@@ -98,7 +100,7 @@ export function Analytics(props: { initialScope?: ScopeChoice }) {
         </For>
       </box>
       <RouteScroll>
-        <Loaded resource={overview.data} loading="Loading traffic…">
+        <Loaded request={overview} loading="Loading traffic…">
           {(data) => {
             const k = () => trafficKpis(data);
             const chosen = () => CHART_SERIES[series()]!;
@@ -258,8 +260,8 @@ function BreakdownPanel(props: {
       <Switch>
         <Match
           when={
-            (breakdown.data.error as { status?: number } | undefined)
-              ?.status === 402
+            (breakdown.error() as { status?: number } | undefined)?.status ===
+            402
           }
         >
           <text fg={theme.warning} wrapMode="word">
@@ -267,7 +269,7 @@ function BreakdownPanel(props: {
           </text>
         </Match>
         <Match when={true}>
-          <Loaded resource={breakdown.data}>
+          <Loaded request={breakdown}>
             {(data) => (
               <box>
                 <For each={data.rows.slice(0, 8)}>

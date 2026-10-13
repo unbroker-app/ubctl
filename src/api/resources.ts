@@ -59,12 +59,9 @@ export async function serviceResources(
           .get<MetricSeriesResult>(
             `/apps/services/${serviceId}/metrics/series?range=${range}`,
           )
-          .catch((err: unknown) => {
-            // History is optional garnish on this view; plan gating already
-            // shows up through `live`.
-            if (err instanceof ApiError && err.status === 402) return undefined;
-            throw err;
-          })
+          // History is optional: a plan gate, an outage or an API without
+          // the route must not hide the scale and live usage already loaded.
+          .catch(() => undefined)
       : Promise.resolve(undefined),
   ]);
   return { service, live, series };
@@ -130,6 +127,24 @@ export function usageTotals(metrics: Metrics | null): {
     cpuLimit: metrics.limits.cpuMillicores * metrics.pods.length,
     memoryLimit: metrics.limits.memoryMiB * metrics.pods.length,
   };
+}
+
+/**
+ * Peak values for a history row: the per-bucket maxima the API computes
+ * (`cpu_peak_millicores`, `memory_peak_mib`) when present, since a max over
+ * bucket averages hides short spikes.
+ */
+export function seriesPeak(
+  result: MetricSeriesResult | undefined,
+  name: string,
+): number | undefined {
+  const peakName: Record<string, string> = {
+    cpu_millicores: "cpu_peak_millicores",
+    memory_mib: "memory_peak_mib",
+  };
+  const peaks = seriesValues(result, peakName[name] ?? "");
+  const values = peaks.length ? peaks : seriesValues(result, name);
+  return values.length ? Math.max(...values) : undefined;
 }
 
 /** Pick one series by name from a series result. */

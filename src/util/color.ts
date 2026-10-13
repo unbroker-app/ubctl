@@ -5,7 +5,8 @@
  */
 export function colorEnabled(): boolean {
   if (process.env.NO_COLOR !== undefined) return false;
-  if (process.env.FORCE_COLOR) return true;
+  const force = process.env.FORCE_COLOR;
+  if (force !== undefined && force !== "") return !/^(0|false)$/i.test(force);
   return Boolean(process.stdout.isTTY) && process.env.TERM !== "dumb";
 }
 
@@ -31,10 +32,11 @@ export const color = {
 /** Color a status word by meaning (running, failed, building, …). */
 export function statusText(status: string): string {
   const value = status.toLowerCase();
+  // Failures first: "unhealthy" and "inactive" contain "healthy"/"active".
+  if (/(fail|error|crash|unhealthy|degraded|cancel|inactive)/.test(value))
+    return color.error(status);
   if (/(running|ready|active|live|healthy|succeeded|online|paid)/.test(value))
     return color.success(status);
-  if (/(fail|error|crash|unhealthy|degraded|cancel)/.test(value))
-    return color.error(status);
   if (
     /(build|deploy|pending|queued|starting|provision|creating|progress|due)/.test(
       value,

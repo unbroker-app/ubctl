@@ -25,7 +25,9 @@ export async function runInline<T>(
     exitOnCtrlC: false,
     useMouse: false,
     autoFocus: false,
-    clearOnShutdown: true,
+    // Clearing would wipe the whole visible terminal, including the output
+    // printed before the prompt; the footer area is cleared on its own.
+    clearOnShutdown: false,
     openConsoleOnError: false,
     targetFps: 30,
   });

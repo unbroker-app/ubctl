@@ -5,11 +5,12 @@ import { ApiError } from "../api/client";
 import type { ProfileResponse } from "../api/types";
 import { loadConfig } from "../config/store";
 import { CliError } from "../util/errors";
+import { tuiAvailable } from "../runtime";
 import type { Session } from "../tui/context/api";
 
 /** OpenTUI renders through Bun's FFI; the npm build runs on Node. */
 export function tuiSupported(): boolean {
-  return "Bun" in globalThis;
+  return tuiAvailable();
 }
 
 /** Resolve credentials and identity for the TUI header, failing like `whoami`. */
@@ -51,7 +52,22 @@ export async function runTui(opts: GlobalOptions): Promise<void> {
     throw new CliError("the interactive UI needs a terminal (TTY)");
   const session = await loadSession(opts);
   const { launchTui } = await import("../tui/launch");
-  await launchTui(session, () => loadSession(opts));
+  // Switching saved contexts only makes sense when no flag or UBCTL_* variable
+  // pins the API URL, token or org: those would silently override the
+  // context and send its token to the wrong place.
+  const env = process.env;
+  const pinned =
+    opts.apiUrl ||
+    opts.org ||
+    env.UBCTL_TOKEN ||
+    env.UBCTL_API_URL ||
+    env.UBCTL_ORG;
+  await launchTui(
+    session,
+    pinned
+      ? undefined
+      : () => loadSession({ trace: opts.trace, retries: opts.retries }),
+  );
 }
 
 export function tuiCommand(): Command {

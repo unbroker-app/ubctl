@@ -36,7 +36,7 @@ export function bytes(n: number | null | undefined): string {
     value /= 1000;
     unit++;
   }
-  return `${unit === 0 ? value : value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
+  return `${unit === 0 ? Math.round(value) : value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
 }
 
 /** Latency in ms as "85ms" or "1.2s". */

@@ -1,7 +1,6 @@
 import { TextAttributes } from "@opentui/core";
 import { useTerminalDimensions } from "@opentui/solid";
 import {
-  createResource,
   createSignal,
   For,
   Match,
@@ -10,6 +9,7 @@ import {
   type Accessor,
 } from "solid-js";
 import {
+  seriesPeak,
   seriesValues,
   serviceResources,
   usageTotals,
@@ -27,7 +27,7 @@ import {
   describeScale,
   describeWindow,
 } from "../../util/scale";
-import { useApi, useRequest } from "../context/api";
+import { useApi, useAsync, useRequest } from "../context/api";
 import { useHints, useRouteKeys } from "../context/hints";
 import { useRoute, type ServiceTab } from "../context/route";
 import { statusColor, useTheme } from "../context/theme";
@@ -54,11 +54,13 @@ export function ServiceDetail(props: { serviceId: string; tab?: ServiceTab }) {
   const [tab, setTab] = createSignal<ServiceTab>(props.tab ?? "overview");
   const [range, setRange] = createSignal<"1h" | "6h" | "24h" | "7d">("1h");
 
-  const [resources] = createResource(
-    () => ({ id: props.serviceId, range: range(), tick: api.tick }),
+  // Changing the history range keeps the page on screen while it reloads.
+  const resources = useAsync(
+    () => ({ id: props.serviceId, range: range() }),
     ({ id, range }) => serviceResources(api.client, id, range),
+    { keepOnChange: true },
   );
-  const service = () => resources.latest?.service;
+  const service = () => resources.value()?.service;
 
   useHints([
     { key: "←→", label: "tabs" },
@@ -181,12 +183,12 @@ export function ServiceDetail(props: { serviceId: string; tab?: ServiceTab }) {
           )}
         </For>
       </box>
-      <Show when={resources.error}>
-        <text fg={theme.error}>
-          {String((resources.error as Error)?.message)}
+      <Show when={resources.error()}>
+        <text fg={resources.value() ? theme.warning : theme.error}>
+          {String((resources.error() as Error)?.message)}
         </text>
       </Show>
-      <Show when={resources.latest}>
+      <Show when={resources.value()}>
         {(data: Accessor<ServiceResources>) => (
           <RouteScroll>
             <Switch>
@@ -376,7 +378,11 @@ function ResourcesTab(props: { data: ServiceResources; range: string }) {
                       {fmt(
                         values().reduce((a, b) => a + b, 0) / values().length,
                       )}{" "}
-                      · peak {fmt(Math.max(...values()))}
+                      · peak{" "}
+                      {fmt(
+                        seriesPeak(props.data.series, name) ??
+                          Math.max(...values()),
+                      )}
                     </text>
                   </box>
                 </Show>
@@ -396,7 +402,7 @@ function DeploymentsTab(props: { serviceId: string }) {
   );
   return (
     <Panel title="Deployments" flexGrow={1}>
-      <Loaded resource={deployments.data}>
+      <Loaded request={deployments}>
         {(data) => (
           <Table
             rows={data.deployments.slice(0, 20)}
@@ -436,7 +442,7 @@ function LogsTab(props: { serviceId: string }) {
   );
   return (
     <Panel title="Runtime logs" flexGrow={1} hint="refreshes every 15s · r now">
-      <Loaded resource={logs.data}>
+      <Loaded request={logs}>
         {(data) => (
           <scrollbox flexGrow={1} stickyScroll stickyStart="bottom" height={20}>
             <For each={data.logs.slice(-400)}>

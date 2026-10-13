@@ -1,7 +1,7 @@
 import { TextAttributes } from "@opentui/core";
 import { useKeyboard } from "@opentui/solid";
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import type { ApiClient } from "../../api/client";
+import { ApiError, type ApiClient } from "../../api/client";
 import type {
   Deployment,
   DeploymentResponse,
@@ -12,12 +12,24 @@ import { matches } from "../lib/keys";
 import { runInline } from "./host";
 
 const STAGES: DeploymentStatus[] = ["queued", "building", "deploying", "live"];
-const TERMINAL: DeploymentStatus[] = ["live", "failed", "superseded"];
+const TERMINAL: DeploymentStatus[] = [
+  "live",
+  "failed",
+  "superseded",
+  "cancelled",
+];
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export type FollowResult =
   | { kind: "done"; deployment: Deployment }
-  | { kind: "detached"; deployment: Deployment | undefined };
+  /** `user`: q/esc; `interrupt`: ctrl+c; `timeout`: the wait expired. */
+  | {
+      kind: "detached";
+      reason: "user" | "interrupt" | "timeout";
+      deployment: Deployment | undefined;
+    }
+  /** A non-retryable API error (auth, not found, …). */
+  | { kind: "error"; message: string; deployment: Deployment | undefined };
 
 /**
  * Follow a deployment live: new build-log lines are printed above (they stay
@@ -37,6 +49,7 @@ export function Follow(props: {
   const [error, setError] = createSignal<string>();
   const started = Date.now();
   let printed = 0;
+  let lastPrinted: string | undefined;
   let stopped = false;
 
   async function poll() {
@@ -52,18 +65,45 @@ export function Follow(props: {
         const complete = TERMINAL.includes(d.status)
           ? lines.length
           : lines.length - 1;
+        // The API keeps only the tail of very long logs, so lines can shift
+        // left between polls. Re-anchor on the last line we printed.
+        if (printed > 0 && lines[printed - 1] !== lastPrinted) {
+          const anchor = lines
+            .slice(0, complete)
+            .lastIndexOf(lastPrinted ?? "");
+          if (anchor >= 0) printed = anchor + 1;
+          else {
+            process.stdout.write("  … (earlier log lines truncated)\n");
+            printed = 0;
+          }
+        }
         for (; printed < complete; printed++) {
           const line = lines[printed]!;
           if (line || printed < complete - 1)
             process.stdout.write(`  ${line}\n`);
+          lastPrinted = line;
         }
         if (TERMINAL.includes(d.status))
           return props.finish({ kind: "done", deployment: d });
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        // Transport errors, 429 and 5xx are worth retrying; a 4xx won't fix
+        // itself (expired token, deployment gone).
+        const status = err instanceof ApiError ? err.status : 0;
+        const message = err instanceof Error ? err.message : String(err);
+        if (status >= 400 && status < 500 && status !== 408 && status !== 429)
+          return props.finish({
+            kind: "error",
+            message,
+            deployment: deployment(),
+          });
+        setError(message);
       }
       if (Date.now() - started > props.timeoutMs)
-        return props.finish({ kind: "detached", deployment: deployment() });
+        return props.finish({
+          kind: "detached",
+          reason: "timeout",
+          deployment: deployment(),
+        });
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
   }
@@ -77,8 +117,18 @@ export function Follow(props: {
   });
 
   useKeyboard((key) => {
-    if (matches(key, "q", "escape", "ctrl+c", "d"))
-      props.finish({ kind: "detached", deployment: deployment() });
+    if (matches(key, "ctrl+c"))
+      props.finish({
+        kind: "detached",
+        reason: "interrupt",
+        deployment: deployment(),
+      });
+    else if (matches(key, "q", "escape"))
+      props.finish({
+        kind: "detached",
+        reason: "user",
+        deployment: deployment(),
+      });
   });
 
   const status = () => deployment()?.status ?? "queued";

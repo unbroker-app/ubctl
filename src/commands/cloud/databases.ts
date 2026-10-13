@@ -201,6 +201,14 @@ export function databasesCommand(): Command {
             print(`Health inspection is not available for ${health.engine}.`);
             return;
           }
+          // Supported but unreachable: "no findings" would read as healthy.
+          if (!health.available) {
+            print(`status:      ${health.status}`);
+            print(
+              "The database could not be inspected right now; try again shortly.",
+            );
+            return;
+          }
           print(`status:      ${health.status}`);
           if (health.version) print(`version:     ${health.version}`);
           if (health.databaseSizeBytes !== undefined)

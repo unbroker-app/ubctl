@@ -168,18 +168,34 @@ test("service names default from the repository", async () => {
   assert.equal(nameFromRepo("https://gitlab.com/group/sub/api/"), "api");
 });
 
-test("colors are off without a terminal and with NO_COLOR", async () => {
+test("colors honor NO_COLOR and FORCE_COLOR", async () => {
   const { color, statusText, visibleLength } = await import("./color");
-  const saved = process.env.FORCE_COLOR;
-  process.env.FORCE_COLOR = "1";
-  process.env.NO_COLOR = "1";
+  const saved = {
+    NO_COLOR: process.env.NO_COLOR,
+    FORCE_COLOR: process.env.FORCE_COLOR,
+  };
   try {
+    delete process.env.NO_COLOR;
+    process.env.FORCE_COLOR = "1";
+    assert.equal(statusText("failed"), "\x1b[31mfailed\x1b[39m");
+    // "unhealthy" must not be mistaken for "healthy".
+    assert.equal(statusText("unhealthy"), "\x1b[31munhealthy\x1b[39m");
+    assert.equal(visibleLength(color.bold("abc")), 3);
+    process.env.FORCE_COLOR = "0";
+    assert.equal(statusText("running"), "running");
+    process.env.FORCE_COLOR = "1";
+    process.env.NO_COLOR = "1";
     assert.equal(statusText("running"), "running");
   } finally {
-    delete process.env.NO_COLOR;
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
-  assert.equal(statusText("failed"), "\x1b[31mfailed\x1b[39m");
-  assert.equal(visibleLength(color.bold("abc")), 3);
-  if (saved === undefined) delete process.env.FORCE_COLOR;
-  else process.env.FORCE_COLOR = saved;
+});
+
+test("bar never prints a ninth eighth", async () => {
+  const { bar } = await import("./chart");
+  for (let v = 0; v <= 100; v++)
+    assert.doesNotMatch(bar(v, 100, 16), /undefined/);
 });

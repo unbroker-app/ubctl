@@ -40,8 +40,13 @@ export function resample(values: readonly number[], width: number): number[] {
 export function bar(value: number, max: number, width: number): string {
   if (width <= 0 || max <= 0 || value <= 0) return "";
   const cells = Math.min(width, (value / max) * width);
-  const full = Math.floor(cells);
-  const partial = Math.round((cells - full) * 8);
+  let full = Math.floor(cells);
+  let partial = Math.round((cells - full) * 8);
+  // A remainder that rounds up to 8/8 is a whole block, not eighths[8].
+  if (partial === 8) {
+    full += 1;
+    partial = 0;
+  }
   const eighths = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"];
   return (
     "█".repeat(full) + (partial > 0 && full < width ? eighths[partial] : "")

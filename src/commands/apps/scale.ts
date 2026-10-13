@@ -18,8 +18,8 @@ import {
 } from "../../util/scale";
 import { runDeploy } from "./deployments";
 import {
-  canPrompt,
   editScaleInline,
+  interactiveNow,
   serviceId as resolveService,
 } from "../../interactive";
 
@@ -145,12 +145,21 @@ export function scaleCommand(): Command {
           const id = await resolveService(ctx, client, idArg);
           const patch = scalePatch(opts);
           if (Object.keys(patch).length === 0) {
+            // Nothing to change, but --deploy still rolls out pending changes
+            // (e.g. a scale saved earlier without --deploy).
+            if (opts.deploy && !opts.dryRun)
+              return runDeploy(client, id, {
+                wait: opts.wait,
+                timeoutMs: opts.timeout * 1000,
+                json: ctx.json,
+              });
             const { service } = await client.get<ServiceResponse>(
               `/apps/services/${id}`,
             );
             if (ctx.json) return printJson(service);
-            // No flags at a terminal: edit the scale in place, like the dashboard.
-            if (canPrompt(ctx)) {
+            // No flags at a terminal: edit the scale in place, like the
+            // dashboard. Never with --dry-run, whose promise is "nothing saved".
+            if (!opts.dryRun && (await interactiveNow(ctx))) {
               const result = await editScaleInline(
                 client,
                 ctx,
@@ -164,6 +173,7 @@ export function scaleCommand(): Command {
               printChanges(scaleDiff(service, result.service));
               if (result.deploy)
                 return runDeploy(client, result.service.id, {
+                  live: true,
                   timeoutMs: opts.timeout * 1000,
                   json: false,
                 });
@@ -176,7 +186,9 @@ export function scaleCommand(): Command {
             print(`scale:   ${describeScale(service)}`);
             print(`limits:  ${describeLimits(service)}`);
             print(
-              "Pass --replicas, --cpu, --memory or --autoscale to change it.",
+              opts.dryRun
+                ? "Dry run — no changes requested."
+                : "Pass --replicas, --cpu, --memory or --autoscale to change it.",
             );
             return;
           }

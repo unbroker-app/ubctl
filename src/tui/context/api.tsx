@@ -1,9 +1,12 @@
 import {
+  batch,
   createContext,
-  createResource,
+  createEffect,
   createSignal,
   onCleanup,
+  untrack,
   useContext,
+  type Accessor,
   type ParentProps,
 } from "solid-js";
 import type { ApiClient } from "../../api/client";
@@ -57,19 +60,85 @@ export function useApi(): ApiContext {
   return value;
 }
 
+/** A request's state. `value` keeps the last good result across failures. */
+export interface Request<T> {
+  value: Accessor<T | undefined>;
+  /** The last error, cleared by the next success. */
+  error: Accessor<unknown>;
+  loading: Accessor<boolean>;
+  refetch(): void;
+}
+
 /**
- * Fetch `path()` and keep it fresh on every refresh tick. Returning
- * `undefined` from `path` pauses the request (e.g. until an id is chosen).
- * The previous value stays on screen while a refresh is in flight.
+ * Run `fetch(source())` now, whenever the source changes and on every
+ * refresh tick. Unlike `createResource`, a failure never throws out of a
+ * read: it only sets `error()`, so one network blip can't break a route or
+ * freeze it on stale data. A new source (another id or range) clears the
+ * previous value; a plain refresh keeps it on screen while in flight.
+ * Returning `undefined` from `source` pauses the request.
  */
-export function useRequest<T>(path: () => string | undefined) {
+export function useAsync<S, T>(
+  source: () => S | undefined,
+  fetch: (source: S) => Promise<T>,
+  options: { keepOnChange?: boolean } = {},
+): Request<T> {
   const api = useApi();
-  const [data, { refetch, mutate }] = createResource(
-    () => {
-      const p = path();
-      return p === undefined ? undefined : { p, tick: api.tick };
-    },
-    ({ p }) => api.client.get<T>(p),
-  );
-  return { data, refetch, mutate };
+  const [value, setValue] = createSignal<T>();
+  const [error, setError] = createSignal<unknown>();
+  const [loading, setLoading] = createSignal(false);
+  const [nonce, setNonce] = createSignal(0);
+  let seq = 0;
+  let lastKey: string | undefined;
+  let alive = true;
+  onCleanup(() => (alive = false));
+
+  createEffect(() => {
+    const current = source();
+    void api.tick;
+    void nonce();
+    if (current === undefined) return;
+    const key = JSON.stringify(current);
+    const id = ++seq;
+    untrack(() => {
+      if (key !== lastKey) {
+        lastKey = key;
+        if (!options.keepOnChange)
+          batch(() => {
+            setValue(undefined);
+            setError(undefined);
+          });
+      }
+      setLoading(true);
+      fetch(current).then(
+        (result) => {
+          if (!alive || id !== seq) return;
+          batch(() => {
+            setValue(() => result);
+            setError(undefined);
+            setLoading(false);
+          });
+        },
+        (err: unknown) => {
+          if (!alive || id !== seq) return;
+          batch(() => {
+            setError(() => err);
+            setLoading(false);
+          });
+        },
+      );
+    });
+  });
+
+  return {
+    value,
+    error,
+    loading,
+    refetch: () => setNonce((n) => n + 1),
+  };
+}
+
+/** GET `path()` with {@link useAsync} semantics. */
+export function useRequest<T>(path: () => string | undefined): Request<T> {
+  const api = useApi();
+  return useAsync(path, (p) => api.client.get<T>(p));
 }

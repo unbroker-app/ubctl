@@ -6,21 +6,30 @@ import type { Choice, InputOptions, SelectOptions } from "./tui/inline/prompts";
 import { CliError } from "./util/errors";
 import { print } from "./util/output";
 import { color } from "./util/color";
+import { isForeground, tuiAvailable } from "./runtime";
 
 /**
  * Interactive layer for regular commands: pickers instead of ids, wizards
  * instead of a wall of flags, and a live deploy view. It only engages when a
- * human is at the terminal of the standalone binary (OpenTUI needs Bun):
- * stdin and stdout are TTYs, `--json` is off and `CI` is unset. Everywhere
- * else commands behave exactly as before, so scripts never block on a prompt.
+ * human is at the terminal of the standalone binary: stdin and stdout are
+ * TTYs, `--json` is off, `CI` is unset, the build includes the TUI, and the
+ * process is the terminal's foreground job. Everywhere else commands behave
+ * exactly as before, so scripts never block on a prompt.
  */
 export function canPrompt(ctx: Pick<Context, "json">): boolean {
   return (
     !ctx.json &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
     !process.env.CI &&
-    "Bun" in globalThis
+    tuiAvailable()
   );
+}
+
+/** {@link canPrompt} plus the foreground-job check; use before prompting. */
+export async function interactiveNow(
+  ctx: Pick<Context, "json">,
+): Promise<boolean> {
+  return canPrompt(ctx) && (await isForeground());
 }
 
 // The prompt modules render with OpenTUI, so they're loaded on demand; the
@@ -83,7 +92,8 @@ export async function serviceId(
   filter: (service: Service) => boolean = () => true,
 ): Promise<string> {
   if (id) return id;
-  if (!canPrompt(ctx)) throw new CliError("missing required argument 'id'");
+  if (!(await interactiveNow(ctx)))
+    throw new CliError("missing required argument 'id'");
   const [{ services }, { projects }] = await Promise.all([
     client.get<ServicesResponse>("/apps/services"),
     client.get<ProjectsResponse>("/apps/projects"),
@@ -104,7 +114,7 @@ export async function projectId(
   id: string | undefined,
 ): Promise<string> {
   if (id) return id;
-  if (!canPrompt(ctx))
+  if (!(await interactiveNow(ctx)))
     throw new CliError("missing required argument 'projectId'");
   const { projects } = await client.get<ProjectsResponse>("/apps/projects");
   if (projects.length === 0)
@@ -123,7 +133,8 @@ export async function databaseId(
   id: string | undefined,
 ): Promise<string> {
   if (id) return id;
-  if (!canPrompt(ctx)) throw new CliError("missing required argument 'id'");
+  if (!(await interactiveNow(ctx)))
+    throw new CliError("missing required argument 'id'");
   const { databases } = await client.get<DatabasesResponse>("/databases");
   if (databases.length === 0) throw new CliError("no managed databases yet");
   return pick({
@@ -145,7 +156,9 @@ export async function followDeploy(
 ): Promise<import("./tui/inline/deploy").FollowResult> {
   const { followDeployment } = await deploys();
   const result = await followDeployment(client, deploymentId, label, timeoutMs);
-  return result ?? { kind: "detached", deployment: undefined };
+  return (
+    result ?? { kind: "detached", reason: "interrupt", deployment: undefined }
+  );
 }
 
 /** Open the scale editor inline; resolves with what was saved, if anything. */

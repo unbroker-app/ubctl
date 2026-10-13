@@ -28,12 +28,21 @@ export function editScale(
   return runInline<ScaleEditResult>(18, (finish) => {
     let saved: ScaleEditResult | undefined;
     let escape: (() => boolean) | undefined;
+    let busy = false;
     const dialog: DialogContext = {
       replace() {},
       clear: () => finish(saved),
       open: true,
       onEscape(handler) {
         escape = handler;
+      },
+      setBusy(next) {
+        busy = next;
+      },
+      dismiss() {
+        if (busy) return;
+        if (escape?.()) return;
+        finish(undefined);
       },
     };
     return (
@@ -44,11 +53,11 @@ export function editScale(
         <ToastProvider>
           <DialogContextProvider value={dialog}>
             <EscapeBridge
-              onEscape={() => {
-                if (escape?.()) return;
-                finish(undefined);
+              onEscape={() => dialog.dismiss()}
+              onCancel={() => {
+                // ctrl+c cancels even mid-edit, but never mid-save.
+                if (!busy) finish(undefined);
               }}
-              onCancel={() => finish(undefined)}
             />
             <ScaleEditor
               service={service}

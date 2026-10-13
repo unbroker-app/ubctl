@@ -1,3 +1,4 @@
+import { useTerminalDimensions } from "@opentui/solid";
 import { createMemo, createSignal } from "solid-js";
 import type { ProjectsResponse, ServicesResponse } from "../../api/types";
 import { age } from "../../util/format";
@@ -11,25 +12,26 @@ import { useDialog } from "../ui/dialog";
 import { Loaded, Panel, Table } from "../ui/panel";
 import { openServicePicker } from "../ui/pickers";
 import { ScaleEditor } from "../ui/scale-editor";
+import { useToast } from "../ui/toast";
 
 export function Services() {
   const theme = useTheme();
   const api = useApi();
   const route = useRoute();
   const dialog = useDialog();
+  const dimensions = useTerminalDimensions();
+  const toast = useToast();
   const services = useRequest<ServicesResponse>(() => "/apps/services");
   const projects = useRequest<ProjectsResponse>(() => "/apps/projects");
   const [selected, setSelected] = createSignal(0);
 
   const projectName = createMemo(
     () =>
-      new Map(
-        (projects.data.latest?.projects ?? []).map((p) => [p.id, p.name]),
-      ),
+      new Map((projects.value()?.projects ?? []).map((p) => [p.id, p.name])),
   );
   // Group by project so the list reads like the dashboard's project boards.
   const rows = createMemo(() =>
-    [...(services.data.latest?.services ?? [])].sort(
+    [...(services.value()?.services ?? [])].sort(
       (a, b) =>
         (projectName().get(a.projectId) ?? "").localeCompare(
           projectName().get(b.projectId) ?? "",
@@ -51,18 +53,24 @@ export function Services() {
       setSelected((i) => Math.min(count - 1, i + 1));
     else if (matches(key, "return") && current())
       route.navigate({ name: "service", serviceId: current()!.id });
-    else if (matches(key, "s") && current())
-      dialog.replace(() => <ScaleEditor service={current()!} />);
-    else if (matches(key, "/")) void openServicePicker(dialog, api, route);
+    else if (matches(key, "s") && current()) {
+      // Freeze the target: the list can re-sort or shrink while it's open.
+      const target = current()!;
+      dialog.replace(() => <ScaleEditor service={target} />);
+    } else if (matches(key, "/")) {
+      key.preventDefault();
+      void openServicePicker(dialog, api, route).catch(toast.error);
+    }
   });
 
   return (
     <Panel title="Services" flexGrow={1} hint={`${rows().length} services`}>
-      <Loaded resource={services.data}>
+      <Loaded request={services}>
         {() => (
           <Table
             rows={rows()}
             selected={selected()}
+            maxRows={Math.max(5, dimensions().height - 12)}
             onSelect={(i) => {
               if (i === selected())
                 route.navigate({ name: "service", serviceId: rows()[i]!.id });

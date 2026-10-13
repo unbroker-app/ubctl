@@ -71,7 +71,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   function move(delta: number) {
     const count = flat().length;
     if (count === 0) return;
-    const next = (selected() + delta + count) % count;
+    const next = (((selected() + delta) % count) + count) % count;
     setSelected(next);
     scroll?.scrollTo(Math.max(0, next - 3));
   }

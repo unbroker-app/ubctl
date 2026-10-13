@@ -216,6 +216,7 @@ export function ScaleEditor(props: {
     const problem = validateScale(props.service, patch, ceiling());
     if (problem) return setError(problem);
     setBusy(true);
+    dialog.setBusy(true);
     try {
       let service = props.service;
       if (changed())
@@ -241,6 +242,7 @@ export function ScaleEditor(props: {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      dialog.setBusy(false);
     }
   }
 
@@ -287,6 +289,14 @@ export function ScaleEditor(props: {
                   active() ? theme.backgroundSelected : undefined
                 }
                 onMouseUp={() => {
+                  if (busy()) return;
+                  // Clicking another row abandons an unfinished edit; its
+                  // text must never be committed into the clicked field.
+                  if (editing()) {
+                    if (index() === selected()) return;
+                    setEditing(false);
+                    setError(undefined);
+                  }
                   setSelected(index());
                   activate();
                 }}

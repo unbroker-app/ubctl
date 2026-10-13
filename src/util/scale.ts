@@ -171,7 +171,7 @@ export function describeLimits(service: Partial<Service>): string {
 
 export function describeWindow(service: Partial<Service>): string | undefined {
   if (!service.scaleWindowEnabled) return undefined;
-  return `min ${service.scaleWindowMin} from ${service.scaleWindowStart} to ${service.scaleWindowEnd} ${service.scaleWindowTz} (days ${service.scaleWindowDays ?? "1234567"})`;
+  return `min ${service.scaleWindowMin} from ${service.scaleWindowStart} to ${service.scaleWindowEnd} ${service.scaleWindowTz} (days ${service.scaleWindowDays ?? "12345"})`;
 }
 
 /** Rows of `field: before → after` for the fields a patch changed. */

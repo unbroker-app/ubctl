@@ -350,6 +350,9 @@ export function fixtureFetch(
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
+    // `__delay_<METHOD>` overrides slow a method down (e.g. a save in flight).
+    const delay = overrides[`__delay_${method}`] as number | undefined;
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     seen.push({
       method,
       path: url.pathname + url.search,

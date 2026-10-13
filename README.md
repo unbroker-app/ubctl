@@ -222,12 +222,13 @@ explains how to get the binary.
 
 In the standalone binary, regular commands also help when a person is at the
 terminal. Nothing changes for scripts: prompts only appear when stdin and
-stdout are terminals, `--json` is off and `CI` is unset. Otherwise a missing
-argument fails exactly as before.
+stdout are terminals, `--json` is off, `CI` is unset and ubctl is the
+terminal's foreground job (not `cmd &`). Otherwise a missing argument fails
+exactly as before.
 
 | Command | Interactive behavior |
 | ------- | -------------------- |
-| `ubctl apps deploy` | Follows the deployment live: build log streams above a footer with stages and elapsed time. `q` detaches (it keeps running); `--detach` skips following. |
+| `ubctl apps deploy` | With `--wait`, or when you pick the service from the list, follows the deployment live: the build log streams above a footer with stages and elapsed time. `q` stops following (with `--wait` that exits non-zero), `ctrl+c` exits 130; the deployment keeps running either way. `ubctl apps deploy <id>` alone still queues and returns. |
 | `ubctl apps services create` | With missing flags, asks for project, repository (connected GitHub repos first, with their branches), name and framework, then offers to deploy. |
 | `ubctl apps scale <id>` | With no flags, opens the dashboard's scale editor inline; `shift+d` saves and follows the deploy. |
 | `ubctl auth switch` | Pick a saved context from a list. |

@@ -58,6 +58,8 @@ if (!arg) {
     naming: "index.js",
     banner: "#!/usr/bin/env node",
     plugins: [tuiStub],
+    // Tell the bundle it has no TUI, even if someone runs it under Bun.
+    define: { "process.env.UBCTL_BUILD_TUI": JSON.stringify("0") },
   });
   if (!result.success) {
     for (const log of result.logs) console.error(log);

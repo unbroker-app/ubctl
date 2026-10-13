@@ -9,7 +9,7 @@ import { print, printTable } from "../util/output";
 import { contextName } from "../util/validate";
 import { resolveContext } from "../context";
 import { CliError } from "../util/errors";
-import { canPrompt, pick } from "../interactive";
+import { interactiveNow, pick } from "../interactive";
 
 export function authCommand(): Command {
   const auth = new Command("auth").description(
@@ -54,7 +54,7 @@ export function authCommand(): Command {
         if (!name) {
           const config = loadConfig();
           const contexts = Object.entries(config.contexts ?? {});
-          if (!canPrompt(resolveContext(cmd.optsWithGlobals())))
+          if (!(await interactiveNow(resolveContext(cmd.optsWithGlobals()))))
             throw new CliError("missing required argument 'name'");
           if (contexts.length === 0)
             throw new CliError(

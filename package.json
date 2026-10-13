@@ -26,7 +26,7 @@
     "prepublishOnly": "bun run build",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --import tsx --test $(find src -name '*.test.ts')",
+    "test": "NO_COLOR=1 node --import tsx --test $(find src -name '*.test.ts')",
     "format": "prettier --write .",
     "build:binary": "bun scripts/build.ts --compile",
     "dev:tui": "bun src/index.ts tui",

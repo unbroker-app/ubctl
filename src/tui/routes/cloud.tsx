@@ -17,14 +17,17 @@ export function Cloud() {
   const databases = useRequest<DatabasesResponse>(() => "/databases");
   const servers = useRequest<DropletsResponse>(() => "/droplets");
   const [selected, setSelected] = createSignal(0);
-  const current = () => databases.data.latest?.databases[selected()];
+  const current = () => databases.value()?.databases[selected()];
   const metrics = useRequest<DatabaseMetricsResponse>(() =>
     current() ? `/databases/${current()!.id}/metrics` : undefined,
   );
 
+  const m = () => metrics.value()?.metrics;
+  const pct = (v: number | undefined) => (v === undefined ? "-" : `${v}%`);
+
   useHints([{ key: "↑↓", label: "select database" }]);
   useRouteKeys((key) => {
-    const count = databases.data.latest?.databases.length ?? 0;
+    const count = databases.value()?.databases.length ?? 0;
     if (matches(key, "up", "k")) setSelected((i) => Math.max(0, i - 1));
     else if (matches(key, "down", "j"))
       setSelected((i) => Math.min(count - 1, i + 1));
@@ -34,7 +37,7 @@ export function Cloud() {
     <RouteScroll>
       <box flexDirection="row" gap={1}>
         <Panel title="Managed databases" flexGrow={1}>
-          <Loaded resource={databases.data}>
+          <Loaded request={databases}>
             {(data) => (
               <Table
                 rows={data.databases}
@@ -72,25 +75,13 @@ export function Cloud() {
                 rows={[
                   { label: "status", value: db().status },
                   { label: "storage", value: `${db().storageGb} GB` },
-                  {
-                    label: "cpu",
-                    value:
-                      metrics.data.latest?.metrics.cpuPct !== undefined
-                        ? `${metrics.data.latest.metrics.cpuPct}%`
-                        : "-",
-                  },
-                  {
-                    label: "memory",
-                    value:
-                      metrics.data.latest?.metrics.memPct !== undefined
-                        ? `${metrics.data.latest.metrics.memPct}%`
-                        : "-",
-                  },
+                  { label: "cpu", value: pct(m()?.cpuPct) },
+                  { label: "memory", value: pct(m()?.memPct) },
                   {
                     label: "load",
                     value:
-                      metrics.data.latest?.metrics.load1 !== undefined
-                        ? `${metrics.data.latest.metrics.load1} / ${metrics.data.latest.metrics.load5} / ${metrics.data.latest.metrics.load15}`
+                      m()?.load1 !== undefined
+                        ? `${m()!.load1} / ${m()!.load5} / ${m()!.load15}`
                         : "-",
                   },
                 ]}
@@ -103,7 +94,7 @@ export function Cloud() {
         </Show>
       </box>
       <Panel title="Servers" flexGrow={1}>
-        <Loaded resource={servers.data}>
+        <Loaded request={servers}>
           {(data) => (
             <Table
               rows={data.droplets}

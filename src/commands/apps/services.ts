@@ -24,7 +24,7 @@ import { sinceEpoch } from "../../util/time-input";
 import { runDatabaseTunnel } from "./database-tunnel";
 import {
   agree,
-  canPrompt,
+  interactiveNow,
   serviceId as resolveService,
 } from "../../interactive";
 import { createWizard } from "./create-wizard";
@@ -205,7 +205,7 @@ export function servicesCommand(): Command {
           cmd: Command,
         ) => {
           const { ctx, client } = authed(cmd);
-          const interactive = canPrompt(ctx);
+          const interactive = await interactiveNow(ctx);
           const missing = !given.name || !given.repo || !given.framework;
           if (missing && !interactive) {
             // Same wording Commander used when these options were mandatory.
@@ -228,14 +228,7 @@ export function servicesCommand(): Command {
                     projectId: projectArg,
                     branchGiven: cmd.getOptionValueSource("branch") === "cli",
                   },
-                  (url) => {
-                    try {
-                      repositoryUrl(url);
-                      return undefined;
-                    } catch (err) {
-                      return (err as Error).message;
-                    }
-                  },
+                  repositoryUrl,
                 )
               : undefined;
           const opts = { ...given, ...answers } as CreateOpts;
@@ -272,8 +265,11 @@ export function servicesCommand(): Command {
           if (ctx.json) return printJson(service);
           print(`Created service ${service.name} (${service.id})`);
           print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
-          if (interactive && (await agree("Deploy it now?", true)))
+          // Only offer when the wizard ran: a fully specified command (a
+          // script, an agent in a PTY) must finish without a question.
+          if (answers && (await agree("Deploy it now?", true)))
             return runDeploy(client, service.id, {
+              live: true,
               timeoutMs: 30 * 60_000,
               json: false,
             });

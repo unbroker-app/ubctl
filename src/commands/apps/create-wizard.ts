@@ -60,7 +60,8 @@ export async function createWizard(
   ctx: Context,
   client: ApiClient,
   given: Partial<CreateAnswers> & { branchGiven: boolean },
-  validateRepo: (url: string) => string | undefined,
+  /** Returns the normalized URL, or throws with a user-facing message. */
+  normalizeRepo: (url: string) => string,
 ): Promise<CreateAnswers> {
   const projectId = await pickProject(ctx, client, given.projectId);
 
@@ -117,11 +118,20 @@ export async function createWizard(
           });
       }
     } else {
-      repo = await ask({
+      const typed = await ask({
         message: "Repository URL",
         placeholder: "https://github.com/acme/web",
-        validate: validateRepo,
+        validate: (url) => {
+          try {
+            normalizeRepo(url);
+            return undefined;
+          } catch (err) {
+            return (err as Error).message;
+          }
+        },
       });
+      // Send what `--repo` would have sent (e.g. without ".git" or a slash).
+      repo = normalizeRepo(typed);
     }
   }
   branch ??= given.branchGiven ? given.branch : defaultBranch;

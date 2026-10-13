@@ -33,7 +33,8 @@ import { HintsContext, type Hint } from "./context/hints";
 
 export function App(props: {
   session: Session;
-  reload: () => Promise<Session>;
+  /** Rebuilds the session from the current context; absent when pinned. */
+  reload?: () => Promise<Session>;
 }) {
   const [session, setSession] = createSignal(props.session);
   return (
@@ -58,7 +59,7 @@ export function App(props: {
 }
 
 function Shell(props: {
-  reload: () => Promise<Session>;
+  reload?: () => Promise<Session>;
   onSession: (session: Session) => void;
 }) {
   const theme = useTheme();
@@ -79,6 +80,8 @@ function Shell(props: {
   };
 
   async function changeContext(name: string) {
+    if (!props.reload) return;
+    const previous = loadConfig().currentContext;
     try {
       switchContext(name);
       props.onSession(await props.reload());
@@ -87,6 +90,8 @@ function Shell(props: {
         message: `Switched to context ${name}`,
       });
     } catch (err) {
+      // Don't leave every later CLI command on a context that doesn't work.
+      if (previous) switchContext(previous);
       toast.error(err);
     }
   }
@@ -103,7 +108,8 @@ function Shell(props: {
         title: "Open service…",
         category: "Go to",
         footer: "/",
-        value: () => openServicePicker(dialog, api, route),
+        value: () =>
+          void openServicePicker(dialog, api, route).catch(toast.error),
       },
       {
         title: "Refresh",
@@ -111,12 +117,14 @@ function Shell(props: {
         footer: "r",
         value: () => api.refresh(),
       },
-      ...Object.keys(loadConfig().contexts ?? {}).map((name) => ({
-        title: `Switch context: ${name}`,
-        category: "Session",
-        footer: name === api.contextName ? "current" : undefined,
-        value: () => void changeContext(name),
-      })),
+      ...Object.keys(props.reload ? (loadConfig().contexts ?? {}) : {}).map(
+        (name) => ({
+          title: `Switch context: ${name}`,
+          category: "Session",
+          footer: name === api.contextName ? "current" : undefined,
+          value: () => void changeContext(name),
+        }),
+      ),
       { title: "Quit", category: "Session", footer: "q", value: quit },
     ];
     // Selection runs after the palette closes so actions can open dialogs.
@@ -132,11 +140,16 @@ function Shell(props: {
 
   useKeyboard((key) => {
     if (matches(key, "ctrl+c")) {
-      if (dialog.open) return dialog.clear();
+      if (dialog.open) return dialog.dismiss();
       return quit();
     }
     if (dialog.open || key.defaultPrevented) return;
-    if (matches(key, "ctrl+p", ":")) return palette();
+    // Open on the next tick so the key that opened a dialog isn't also typed
+    // into the dialog's freshly focused search input.
+    if (matches(key, "ctrl+p", ":")) {
+      key.preventDefault();
+      return void setTimeout(palette, 0);
+    }
     if (matches(key, "q")) return quit();
     if (matches(key, "r")) {
       api.refresh();
@@ -147,7 +160,10 @@ function Shell(props: {
       });
     }
     if (matches(key, "escape", "backspace")) return route.back();
-    if (matches(key, "?")) return help();
+    if (matches(key, "?")) {
+      key.preventDefault();
+      return void setTimeout(help, 0);
+    }
     const bySection = SECTIONS.find((s) => s.key === key.name);
     if (bySection) return go(bySection.route);
     if (matches(key, "tab", "shift+tab")) {

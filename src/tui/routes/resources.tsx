@@ -1,9 +1,10 @@
-import { createResource, createSignal, Show } from "solid-js";
+import { useTerminalDimensions } from "@opentui/solid";
+import { createSignal, Show } from "solid-js";
 import { fleetResources, usageTotals } from "../../api/resources";
 import type { UsageResponse } from "../../api/types";
 import { gauge } from "../../util/chart";
 import { describeLimits, describeScale } from "../../util/scale";
-import { useApi, useRequest } from "../context/api";
+import { useApi, useAsync, useRequest } from "../context/api";
 import { useHints, useRouteKeys } from "../context/hints";
 import { useRoute } from "../context/route";
 import { statusColor, useTheme } from "../context/theme";
@@ -17,13 +18,14 @@ export function Resources() {
   const api = useApi();
   const route = useRoute();
   const dialog = useDialog();
+  const dimensions = useTerminalDimensions();
   const [selected, setSelected] = createSignal(0);
-  const [fleet] = createResource(
-    () => ({ tick: api.tick }),
+  const fleet = useAsync(
+    () => "fleet",
     () => fleetResources(api.client),
   );
   const usage = useRequest<UsageResponse>(() => "/account/usage");
-  const rows = () => fleet.latest ?? [];
+  const rows = () => fleet.value() ?? [];
   const current = () => rows()[selected()];
 
   useHints([
@@ -41,8 +43,10 @@ export function Resources() {
         serviceId: current()!.service.id,
         tab: "resources",
       });
-    else if (matches(key, "s") && current())
-      dialog.replace(() => <ScaleEditor service={current()!.service} />);
+    else if (matches(key, "s") && current()) {
+      const target = current()!.service;
+      dialog.replace(() => <ScaleEditor service={target} />);
+    }
   });
 
   const gated = () => rows().find((r) => r.live.state === "gated");
@@ -50,7 +54,7 @@ export function Resources() {
   return (
     <RouteScroll>
       <Panel title="Account usage">
-        <Loaded resource={usage.data}>
+        <Loaded request={usage}>
           {(data) => (
             <Fields
               rows={[
@@ -76,18 +80,19 @@ export function Resources() {
         flexGrow={1}
         hint={current() ? describeLimits(current()!.service) : undefined}
       >
-        <Show when={fleet.error}>
-          <text fg={theme.error}>
-            {String((fleet.error as Error)?.message)}
+        <Show when={fleet.error()}>
+          <text fg={fleet.value() ? theme.warning : theme.error}>
+            {String((fleet.error() as Error)?.message)}
           </text>
         </Show>
         <Show
-          when={fleet.latest}
+          when={fleet.value()}
           fallback={<text fg={theme.textMuted}>Sampling every service…</text>}
         >
           <Table
             rows={rows()}
             selected={selected()}
+            maxRows={Math.max(5, dimensions().height - 12)}
             onSelect={setSelected}
             empty="No services yet."
             columns={[

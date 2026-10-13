@@ -48,7 +48,8 @@ export type DeploymentStatus =
   | "deploying"
   | "live"
   | "failed"
-  | "superseded";
+  | "superseded"
+  | "cancelled";
 
 export interface Project {
   id: string;

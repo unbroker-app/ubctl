@@ -1,15 +1,8 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core";
 import { useRouteKeys } from "../context/hints";
 import { matches } from "../lib/keys";
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  type JSX,
-  type ParentProps,
-  type Resource,
-} from "solid-js";
+import { For, Show, type JSX, type ParentProps } from "solid-js";
+import type { Request } from "../context/api";
 import { useTheme } from "../context/theme";
 
 /** A titled block with a thin border, the main layout unit of every route. */
@@ -92,31 +85,49 @@ export function Stat(props: {
 }
 
 /**
- * Render a resource's three states (loading, failed, ready) without reading
- * an errored resource, which would throw inside JSX.
+ * Render a request: its data once loaded, a loading line before that, and
+ * the error (as a warning above stale data, or alone if nothing loaded yet).
+ *
+ * `children` runs once. It receives a live view of the value, so property
+ * reads inside JSX update on refresh without rebuilding the subtree (which
+ * would reset scroll positions and re-issue child requests).
  */
-export function Loaded<T>(props: {
-  resource: Resource<T | undefined>;
+export function Loaded<T extends object>(props: {
+  request: Request<T>;
   children: (value: T) => JSX.Element;
   loading?: string;
 }) {
   const theme = useTheme();
+  const live = new Proxy({} as T, {
+    get: (_, key) =>
+      (props.request.value() as Record<PropertyKey, unknown>)?.[key],
+    has: (_, key) => key in ((props.request.value() as object) ?? {}),
+  });
+  const message = () => {
+    const err = props.request.error() as Error | undefined;
+    return err ? (err.message ?? String(err)) : undefined;
+  };
   return (
-    <Switch>
-      <Match when={props.resource.error}>
-        <text fg={theme.error} wrapMode="word">
-          {String(
-            (props.resource.error as Error)?.message ?? props.resource.error,
-          )}
+    <>
+      <Show when={message()}>
+        <text
+          fg={props.request.value() ? theme.warning : theme.error}
+          wrapMode="word"
+        >
+          {props.request.value() ? `Refresh failed: ${message()}` : message()}
         </text>
-      </Match>
-      <Match when={props.resource.latest !== undefined}>
-        {props.children(props.resource.latest as T)}
-      </Match>
-      <Match when={true}>
-        <text fg={theme.textMuted}>{props.loading ?? "Loading…"}</text>
-      </Match>
-    </Switch>
+      </Show>
+      <Show
+        when={props.request.value() !== undefined}
+        fallback={
+          <Show when={!message()}>
+            <text fg={theme.textMuted}>{props.loading ?? "Loading…"}</text>
+          </Show>
+        }
+      >
+        {props.children(live)}
+      </Show>
+    </>
   );
 }
 
@@ -133,8 +144,26 @@ export function Table<T>(props: {
   selected?: number;
   onSelect?: (index: number) => void;
   empty?: string;
+  /**
+   * Show at most this many rows, scrolled to keep `selected` in view (with a
+   * "n more" line), so long lists stay navigable in a short terminal.
+   */
+  maxRows?: number;
 }) {
   const theme = useTheme();
+  const start = () => {
+    const max = props.maxRows;
+    if (!max || props.rows.length <= max) return 0;
+    const half = Math.floor(max / 2);
+    return Math.max(
+      0,
+      Math.min((props.selected ?? 0) - half, props.rows.length - max),
+    );
+  };
+  const visible = () =>
+    props.maxRows
+      ? props.rows.slice(start(), start() + props.maxRows)
+      : props.rows;
   return (
     <box>
       <box flexDirection="row" gap={2} paddingLeft={1}>
@@ -160,8 +189,9 @@ export function Table<T>(props: {
           </text>
         }
       >
-        <For each={props.rows}>
-          {(row, index) => {
+        <For each={visible()}>
+          {(row, local) => {
+            const index = () => start() + local();
             const active = () => props.selected === index();
             return (
               <box
@@ -194,6 +224,13 @@ export function Table<T>(props: {
             );
           }}
         </For>
+        <Show when={props.maxRows && props.rows.length > props.maxRows}>
+          <text fg={theme.textSubtle} paddingLeft={1}>
+            {start() + 1}-
+            {Math.min(props.rows.length, start() + (props.maxRows ?? 0))} of{" "}
+            {props.rows.length}
+          </text>
+        </Show>
       </Show>
     </box>
   );
