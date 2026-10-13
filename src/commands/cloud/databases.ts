@@ -8,9 +8,12 @@ import type {
   LogicalDbsResponse,
   LogicalDbResponse,
   DatabaseMetricsResponse,
-} from "../../api/reseller-types";
+  DatabaseHealthResponse,
+} from "../../api/cloud-types";
 import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
+import { bytes } from "../../util/format";
+import { databaseId } from "../../interactive";
 import { positiveInteger, positiveNumber } from "../../util/validate";
 
 // Engines the API accepts (databases.schema.ts createDatabaseSchema).
@@ -61,23 +64,26 @@ export function databasesCommand(): Command {
 
   withJson(
     db
-      .command("get <id>")
+      .command("get [id]")
       .description("Show a database cluster")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const { database } = await client.get<DatabaseResponse>(
-          `/databases/${id}`,
-        );
-        if (ctx.json) return printJson(database);
-        print(`id:      ${database.id}`);
-        print(`name:    ${database.name}`);
-        print(`engine:  ${database.engine} ${database.version}`);
-        print(`status:  ${database.status}`);
-        print(`region:  ${database.region}`);
-        print(
-          `nodes:   ${database.nodes} × ${database.size}, ${database.storageGb}GB`,
-        );
-      }),
+      .action(
+        async (idArg: string | undefined, _opts: unknown, cmd: Command) => {
+          const { ctx, client } = authed(cmd);
+          const id = await databaseId(ctx, client, idArg);
+          const { database } = await client.get<DatabaseResponse>(
+            `/databases/${id}`,
+          );
+          if (ctx.json) return printJson(database);
+          print(`id:      ${database.id}`);
+          print(`name:    ${database.name}`);
+          print(`engine:  ${database.engine} ${database.version}`);
+          print(`status:  ${database.status}`);
+          print(`region:  ${database.region}`);
+          print(
+            `nodes:   ${database.nodes} × ${database.size}, ${database.storageGb}GB`,
+          );
+        },
+      ),
   );
 
   withJson(
@@ -91,8 +97,14 @@ export function databasesCommand(): Command {
           .makeOptionMandatory(),
       )
       .requiredOption("--engine-version <version>", "engine version, e.g. 16")
-      .requiredOption("--region <region>", "region slug, e.g. nyc3")
-      .requiredOption("--size <size>", "node size slug, e.g. db-s-1vcpu-1gb")
+      .requiredOption(
+        "--region <region>",
+        "region slug (as offered in Cloud → Databases → New)",
+      )
+      .requiredOption(
+        "--size <size>",
+        "node size slug (as offered in Cloud → Databases → New)",
+      )
       .addOption(
         new Option("--nodes <n>", "number of nodes (1-9)")
           .argParser((value) => positiveInteger(value, "nodes", 9))
@@ -149,25 +161,107 @@ export function databasesCommand(): Command {
 
   withJson(
     db
-      .command("metrics <id>")
+      .command("metrics [id]")
       .description("Show point-in-time cluster metrics")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const { metrics } = await client.get<DatabaseMetricsResponse>(
-          `/databases/${id}/metrics`,
-        );
-        if (ctx.json) return printJson(metrics);
-        if (!metrics.available) {
-          print("No metrics available for this cluster.");
-          return;
-        }
-        if (metrics.cpuPct !== undefined) print(`cpu:    ${metrics.cpuPct}%`);
-        if (metrics.memPct !== undefined) print(`memory: ${metrics.memPct}%`);
-        if (metrics.load1 !== undefined)
-          print(
-            `load:   ${metrics.load1} / ${metrics.load5} / ${metrics.load15}`,
+      .action(
+        async (idArg: string | undefined, _opts: unknown, cmd: Command) => {
+          const { ctx, client } = authed(cmd);
+          const id = await databaseId(ctx, client, idArg);
+          const { metrics } = await client.get<DatabaseMetricsResponse>(
+            `/databases/${id}/metrics`,
           );
-      }),
+          if (ctx.json) return printJson(metrics);
+          if (!metrics.available) {
+            print("No metrics available for this cluster.");
+            return;
+          }
+          if (metrics.cpuPct !== undefined) print(`cpu:    ${metrics.cpuPct}%`);
+          if (metrics.memPct !== undefined) print(`memory: ${metrics.memPct}%`);
+          if (metrics.load1 !== undefined)
+            print(
+              `load:   ${metrics.load1} / ${metrics.load5} / ${metrics.load15}`,
+            );
+        },
+      ),
+  );
+
+  withJson(
+    db
+      .command("health [id]")
+      .description("Inspect connections, size and schema findings (PostgreSQL)")
+      .action(
+        async (idArg: string | undefined, _opts: unknown, cmd: Command) => {
+          const { ctx, client } = authed(cmd);
+          const id = await databaseId(ctx, client, idArg);
+          const { health } = await client.get<DatabaseHealthResponse>(
+            `/databases/${id}/health`,
+          );
+          if (ctx.json) return printJson(health);
+          if (!health.supported) {
+            print(`Health inspection is not available for ${health.engine}.`);
+            return;
+          }
+          print(`status:      ${health.status}`);
+          if (health.version) print(`version:     ${health.version}`);
+          if (health.databaseSizeBytes !== undefined)
+            print(`size:        ${bytes(health.databaseSizeBytes)}`);
+          if (health.connections)
+            print(
+              `connections: ${health.connections.active} active / ${health.connections.total} open / ${health.connections.max} max`,
+            );
+          if (health.findings.length === 0) {
+            print("findings:    none");
+            return;
+          }
+          print("");
+          printTable(health.findings, [
+            { key: "severity", header: "severity" },
+            { key: "title", header: "finding" },
+            { key: "detail", header: "detail" },
+          ]);
+        },
+      ),
+  );
+
+  withJson(
+    db
+      .command("resize [id]")
+      .description("Scale a cluster's node size and count in place")
+      .requiredOption("--size <size>", "new node size slug")
+      .addOption(
+        new Option("--nodes <n>", "number of nodes (1-9)")
+          .argParser((value) => positiveInteger(value, "nodes", 9))
+          .makeOptionMandatory(),
+      )
+      .addOption(
+        new Option("--storage <gb>", "storage in GB").argParser((value) =>
+          positiveInteger(value, "storage"),
+        ),
+      )
+      .action(
+        async (
+          idArg: string | undefined,
+          opts: { size: string; nodes: number; storage?: number },
+          cmd: Command,
+        ) => {
+          const { ctx, client } = authed(cmd);
+          const id = await databaseId(ctx, client, idArg);
+          const body: Record<string, unknown> = {
+            size: opts.size,
+            num_nodes: opts.nodes,
+          };
+          if (opts.storage !== undefined) body.storageGb = opts.storage;
+          const { database } = await client.post<DatabaseResponse>(
+            `/databases/${id}/resize`,
+            body,
+          );
+          if (ctx.json) return printJson(database);
+          print(
+            `Resizing ${database.name} (${database.id}) to ${opts.nodes} × ${opts.size} — the cluster stays online while it migrates.`,
+          );
+          print(`Watch it with: ubctl db get ${database.id}`);
+        },
+      ),
   );
 
   db.addCommand(usersCommand());

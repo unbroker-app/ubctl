@@ -1,18 +1,21 @@
 import { Command } from "commander";
-import type {
-  DropletsResponse,
-  DropletResponse,
-} from "../../api/reseller-types";
+import type { DropletsResponse, DropletResponse } from "../../api/cloud-types";
 import { authed, withJson } from "../helpers";
 import { print, printJson, printTable } from "../../util/output";
 
-export function dropletsCommand(): Command {
-  const droplets = new Command("droplets").description("Manage droplets (VMs)");
+/**
+ * `ubctl servers` — virtual servers. The API resource is still called
+ * `droplets`, so `ubctl droplets` stays as an alias for existing scripts.
+ */
+export function serversCommand(): Command {
+  const servers = new Command("servers")
+    .alias("droplets")
+    .description("Manage servers (virtual machines)");
 
   withJson(
-    droplets
+    servers
       .command("ls")
-      .description("List droplets")
+      .description("List servers")
       .action(async (_opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
         const { droplets: rows } =
@@ -30,24 +33,24 @@ export function dropletsCommand(): Command {
   );
 
   withJson(
-    droplets
+    servers
       .command("get <id>")
-      .description("Show a droplet")
+      .description("Show a server")
       .action(async (id: string, _opts: unknown, cmd: Command) => {
         const { ctx, client } = authed(cmd);
-        const { droplet } = await client.get<DropletResponse>(
+        const { droplet: server } = await client.get<DropletResponse>(
           `/droplets/${id}`,
         );
-        if (ctx.json) return printJson(droplet);
-        print(`id:     ${droplet.id}`);
-        print(`name:   ${droplet.name}`);
-        print(`status: ${droplet.status}`);
-        print(`region: ${droplet.region}`);
+        if (ctx.json) return printJson(server);
+        print(`id:     ${server.id}`);
+        print(`name:   ${server.name}`);
+        print(`status: ${server.status}`);
+        print(`region: ${server.region}`);
         print(
-          `size:   ${droplet.size} (${droplet.vcpus} vCPU, ${droplet.memoryGb}GB RAM, ${droplet.diskGb}GB disk)`,
+          `size:   ${server.size} (${server.vcpus} vCPU, ${server.memoryGb}GB RAM, ${server.diskGb}GB disk)`,
         );
-        print(`image:  ${droplet.image}`);
-        print(`ipv4:   ${droplet.ipv4}`);
+        print(`image:  ${server.image}`);
+        print(`ipv4:   ${server.ipv4}`);
       }),
   );
 
@@ -56,24 +59,24 @@ export function dropletsCommand(): Command {
     ["power-off", "power_off", "Powering off"],
     ["power-on", "power_on", "Powering on"],
   ] as const) {
-    droplets
+    servers
       .command(`${name} <id>`)
-      .description(`${label.replace(/ing\b/, "")} a droplet`)
+      .description(`${label.replace(/ing\b/, "")} a server`)
       .action(async (id: string, _opts: unknown, cmd: Command) => {
         const { client } = authed(cmd);
         await client.post(`/droplets/${id}/${path}`, {});
-        print(`${label} droplet ${id}…`);
+        print(`${label} server ${id}…`);
       });
   }
 
-  droplets
+  servers
     .command("rm <id>")
-    .description("Destroy a droplet")
+    .description("Destroy a server")
     .action(async (id: string, _opts: unknown, cmd: Command) => {
       const { client } = authed(cmd);
       await client.delete(`/droplets/${id}`);
-      print(`Destroyed droplet ${id}`);
+      print(`Destroyed server ${id}`);
     });
 
-  return droplets;
+  return servers;
 }

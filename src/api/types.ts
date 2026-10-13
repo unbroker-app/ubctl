@@ -82,6 +82,24 @@ export interface Service {
   /** Page access control (the "Security" tab); present on the service object. */
   accessMode?: "public" | "password" | "organization";
   hasPassword?: boolean;
+  /* Scale configuration (PATCH /apps/services/:id; applied on next deploy). */
+  replicas?: number;
+  /** Per-replica CPU limit in millicores; null = platform default. */
+  cpuLimit?: number | null;
+  /** Per-replica memory limit in MiB; null = platform default. */
+  memoryLimit?: number | null;
+  autoscale?: boolean;
+  minReplicas?: number | null;
+  maxReplicas?: number | null;
+  targetCpuPercent?: number | null;
+  targetMemoryPercent?: number | null;
+  scaleOnCpu?: boolean;
+  scaleWindowEnabled?: boolean;
+  scaleWindowMin?: number | null;
+  scaleWindowStart?: string | null;
+  scaleWindowEnd?: string | null;
+  scaleWindowDays?: string | null;
+  scaleWindowTz?: string | null;
 }
 
 export interface DeploymentSummary {
@@ -117,16 +135,141 @@ export interface Domain {
 }
 
 export interface PodMetrics {
-  name: string;
-  cpuMillicores: number;
-  memoryMiB: number;
-  ready: boolean;
+  pod: string;
+  /** null while the metrics server has no sample for the pod yet. */
+  cpuMillicores: number | null;
+  memoryMiB: number | null;
+  restarts: number;
+  /** Container state, e.g. "Running" or "CrashLoopBackOff". */
+  state: string;
+  rxBytes?: number | null;
+  txBytes?: number | null;
 }
 
 export interface Metrics {
   replicas: { ready: number; desired: number };
   pods: PodMetrics[];
+  /** Per-pod limits actually applied to the running workload. */
   limits: { cpuMillicores: number; memoryMiB: number };
+  overhead?: { cpuMillicores: number; memoryMiB: number };
+}
+
+export type MetricRange = "15m" | "1h" | "6h" | "24h" | "7d" | "30d";
+
+export interface MetricSeries {
+  name: string;
+  unit: "millicores" | "MiB" | "bytes/s" | "count" | "%";
+  agg: "avg" | "max" | "min";
+  /** [epoch ms, value] pairs. */
+  points: [number, number][];
+}
+
+export interface MetricSeriesResult {
+  from: number;
+  to: number;
+  step: number;
+  source: "raw" | "hourly";
+  series: MetricSeries[];
+  latestSampleAt?: number | null;
+}
+
+/* ----- Traffic analytics ----- */
+
+export type TrafficRange = "24h" | "7d" | "30d" | "90d" | "365d";
+
+export type TrafficDimension =
+  | "path"
+  | "page"
+  | "status"
+  | "method"
+  | "country"
+  | "referer"
+  | "browser"
+  | "os"
+  | "device"
+  | "protocol"
+  | "scheme"
+  | "tls"
+  | "cache"
+  | "bot"
+  | "utm_source"
+  | "utm_medium"
+  | "utm_campaign";
+
+export interface TrafficTotals {
+  requests: number;
+  bytesIn: number;
+  bytesOut: number;
+  s2xx: number;
+  s3xx: number;
+  s4xx: number;
+  s5xx: number;
+  pageviews: number;
+  bots: number;
+  probes: number;
+  uniques: number;
+  p50: number | null;
+  p95: number | null;
+  p99: number | null;
+}
+
+export interface TrafficBucket {
+  bucket: number;
+  requests: number;
+  bytesOut: number;
+  s2xx: number;
+  s3xx: number;
+  s4xx: number;
+  s5xx: number;
+  probes: number;
+  pageviews: number;
+  uniques: number;
+  p95: number | null;
+}
+
+export interface TrafficOverview {
+  range: TrafficRange;
+  from: number;
+  to: number;
+  step: number;
+  totals: TrafficTotals;
+  buckets: TrafficBucket[];
+  hosts: { host: string; requests: number; bytesOut: number }[];
+  services: {
+    serviceId: string;
+    requests: number;
+    bytesOut: number;
+    s4xx: number;
+    s5xx: number;
+  }[];
+  /** True when the cell sees no client IPs: visitors/countries are unknown. */
+  visitorsUnavailable: boolean;
+  /** Distinct visitors in the last 5 minutes. */
+  online: number;
+}
+
+export interface TrafficBreakdownRow {
+  value: string;
+  requests: number;
+  bytesOut: number;
+  /** Share of the total, 0..1. */
+  share: number;
+  pageviews?: number;
+  s2xx?: number;
+  s3xx?: number;
+  s4xx?: number;
+  s5xx?: number;
+  p95?: number | null;
+}
+
+export interface TrafficBreakdown {
+  dimension: TrafficDimension;
+  range: TrafficRange;
+  from: number;
+  to: number;
+  rows: TrafficBreakdownRow[];
+  other: TrafficBreakdownRow | null;
+  approximate: boolean;
 }
 
 export interface ProjectsResponse {
@@ -285,6 +428,7 @@ export interface UsageSummary {
   vcpus: number;
   memoryGb: number;
   storageGb: number;
+  /** Servers in use (the API keeps its historical field name). */
   droplets: number;
   dropletLimit: number;
 }
@@ -311,6 +455,21 @@ export interface Organization {
   kind: "personal" | "team";
   plan: string;
   color: string;
+  /** Capabilities of the cell the organization runs on. */
+  cell?: OrgCell;
+}
+
+export interface OrgCell {
+  id: string;
+  dedicated: boolean;
+  autoscaling: boolean;
+  scaleWindows: boolean;
+  /** Replica ceiling for every scale field on this cell. */
+  maxReplicas: number;
+  pageAccessControl: boolean;
+  trafficAnalytics: boolean;
+  liveMetrics: boolean;
+  costEstimates: boolean;
 }
 
 export interface UsageResponse {

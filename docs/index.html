@@ -589,14 +589,20 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
         <div class="grid2">
           <div>
             <h4>Services</h4>
-            <pre><span class="p">ubctl</span> apps services metrics <span class="o">&lt;svc&gt;</span> --since 1h
+            <pre><span class="p">ubctl</span> apps services resources <span class="o">&lt;svc&gt;</span> --range 1h
+<span class="p">ubctl</span> apps resources
+<span class="p">ubctl</span> apps scale <span class="o">&lt;svc&gt;</span> --autoscale --min 2 --max 5 --deploy
+<span class="p">ubctl</span> analytics --service <span class="o">&lt;svc&gt;</span> --range 7d
+<span class="p">ubctl</span> analytics top referrers
+<span class="p">ubctl</span> apps services metrics <span class="o">&lt;svc&gt;</span> --since 1h
 <span class="p">ubctl</span> apps services logs <span class="o">&lt;svc&gt;</span> --since 30m
 <span class="p">ubctl</span> apps domains status <span class="o">&lt;svc&gt;</span>
 <span class="p">ubctl</span> monitoring ls</pre>
           </div>
           <div>
             <h4>CLI operations</h4>
-            <pre><span class="p">ubctl</span> doctor
+            <pre><span class="p">ubctl</span> tui
+<span class="p">ubctl</span> doctor
 <span class="p">ubctl</span> login --context production
 <span class="p">ubctl</span> auth ls
 <span class="p">ubctl</span> auth switch production
@@ -606,15 +612,14 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
       </div>
     </section>
 
-    <!-- RESELLER -->
+    <!-- CLOUD RESOURCES -->
     <section id="recursos">
       <div class="wrap">
         <h2>Infrastructure</h2>
         <h3 class="title">Cloud resources</h3>
         <p>
           In addition to apps (PaaS), <code class="inline">ubctl</code> manages
-          the control-plane-backed resource layer: virtual machines and managed
-          databases.
+          servers (virtual machines) and managed databases.
         </p>
         <table>
           <thead>
@@ -625,12 +630,15 @@ echo <span class="s">"$TOKEN"</span> | <span class="p">ubctl</span> login --stdi
           </thead>
           <tbody>
             <tr>
-              <td><code>ubctl droplets</code></td>
+              <td><code>ubctl servers</code></td>
               <td>ls · get · reboot · power-off · power-on · rm</td>
             </tr>
             <tr>
               <td><code>ubctl db</code></td>
-              <td>ls · get · connection (credentials) · rm</td>
+              <td>
+                ls · get · create · connection (credentials) · metrics · health
+                · resize · users · dbs · rm
+              </td>
             </tr>
           </tbody>
         </table>

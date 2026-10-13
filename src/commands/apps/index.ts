@@ -14,6 +14,8 @@ import { connectionsCommands } from "./connections";
 import { databasesCommand } from "./databases";
 import { volumesCommand } from "./volumes";
 import { backupsCommand } from "./backups";
+import { scaleCommand } from "./scale";
+import { fleetResourcesCommand } from "./resources";
 
 /** The `apps` command group — the PaaS surface (projects, services, deploys). */
 export function appsCommand(): Command {
@@ -28,6 +30,8 @@ export function appsCommand(): Command {
   apps.addCommand(databasesCommand());
   apps.addCommand(volumesCommand());
   apps.addCommand(backupsCommand());
+  apps.addCommand(fleetResourcesCommand());
+  apps.addCommand(scaleCommand());
   apps.addCommand(deployCommand());
   apps.addCommand(deploymentsCommand());
   apps.addCommand(deploymentCommand());

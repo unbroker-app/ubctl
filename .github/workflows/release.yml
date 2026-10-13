@@ -61,22 +61,14 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           sed -i "s/export const VERSION = \".*\";/export const VERSION = \"$VERSION\";/" src/version.ts
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      # OpenTUI ships its native renderer as per-platform optional packages;
+      # cross-compiling needs every target's package, not just the runner's.
+      - name: Install dependencies (all platforms)
+        run: bun install --frozen-lockfile --os="*" --cpu="*"
 
       - name: Cross-compile (Linux + macOS, x64 + arm64)
         run: |
-          mkdir -p out
-          for target in \
-            "bun-linux-x64:ubctl-linux-x64" \
-            "bun-linux-arm64:ubctl-linux-arm64" \
-            "bun-darwin-x64:ubctl-darwin-x64" \
-            "bun-darwin-arm64:ubctl-darwin-arm64"; do
-            bun_target="${target%%:*}"
-            out_name="${target##*:}"
-            echo "Building $out_name ($bun_target)"
-            bun build --compile --target="$bun_target" src/index.ts --outfile "out/$out_name"
-          done
+          bun scripts/build.ts --compile=all
           ( cd out && sha256sum ubctl-* > SHA256SUMS )
           ls -la out
 

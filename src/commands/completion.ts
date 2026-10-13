@@ -7,6 +7,7 @@ const topLevel = [
   "whoami",
   "auth",
   "apps",
+  "analytics",
   "beacon",
   "github",
   "monitoring",
@@ -16,8 +17,11 @@ const topLevel = [
   "orgs",
   "team",
   "notifications",
-  "droplets",
+  "servers",
   "db",
+  "tui",
+  "doctor",
+  "completion",
 ];
 
 export function completionCommand(): Command {

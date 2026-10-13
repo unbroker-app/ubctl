@@ -2,8 +2,10 @@
 
 The official command-line interface for [Unbroker Cloud](https://github.com/unbroker-app).
 Drive your whole account from the terminal or CI: deploy apps from GitHub, manage
-services, env vars and domains, spin up managed databases, run Beacon realtime
-projects, and inspect your cloud resources — all over the Unbroker API.
+services, env vars and domains, scale services, read traffic analytics and
+resource usage, spin up managed databases, run Beacon realtime projects, and
+inspect your servers — all over the Unbroker API. The standalone binary also
+includes an interactive terminal dashboard (`ubctl tui`).
 
 It's the same idea as `doctl` or the Fly/Render CLIs, but for Unbroker.
 
@@ -16,11 +18,14 @@ browser (self-contained, no build needed).
 
 - [Install](#install)
 - [Authenticate](#authenticate)
+- [Interactive dashboard](#interactive-dashboard)
+- [Interactive commands](#interactive-commands)
 - [Observability and billing](#observability-and-billing)
 - [Core concepts](#core-concepts)
 - [Walkthrough 1 — deploy an app from GitHub](#walkthrough-1--deploy-an-app-from-github)
 - [Walkthrough 2 — a managed database](#walkthrough-2--a-managed-database)
 - [Walkthrough 3 — a Beacon realtime project](#walkthrough-3--a-beacon-realtime-project)
+- [Walkthrough 4 — traffic, resources and scale](#walkthrough-4--traffic-resources-and-scale)
 - [Output & scripting](#output--scripting)
 - [Configuration](#configuration)
 - [Command reference](#command-reference)
@@ -35,7 +40,8 @@ ubctl ships as standalone binaries on each public GitHub Release and as a
 scoped npm package on **GitHub Packages**. The standalone installer requires no
 GitHub account or access token.
 
-**Standalone binary** (Linux / macOS, x64 / arm64) — no Node required:
+**Standalone binary** (Linux / macOS, x64 / arm64) — no Node required, and the
+only build that includes the interactive dashboard:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/unbroker-app/ubctl/main/scripts/install.sh | bash
@@ -158,6 +164,79 @@ ubctl apps deploy <serviceId> --wait
 
 ---
 
+## Interactive dashboard
+
+The standalone binary includes a full-screen terminal dashboard built with
+[OpenTUI](https://github.com/anomalyco/opentui). Open it with `ubctl tui` (alias
+`ubctl ui`); a bare `ubctl` in an interactive terminal opens it too once you are
+logged in. Scripts and pipes keep getting plain output.
+
+```
+  ▲ UNBROKER CLOUD ubctl 0.5.0                                        token "ci" · org_acme · acme
+                       Analytics · All projects ·    24h    7d    30d    3m    12m
+ │ 1 Overview
+ │ 2 Services         ╭───────────────────────────────────────────────────────────────────────────╮
+ │ 3 Analytics        │ Visitors       Page views     Requests        Online now     Errors       │
+ │ 4 Resources        │ 7.4k           24.8k          91.2k           23             0.2%         │
+ │ 5 Cloud            │                                                              2.6% 4xx     │
+ │ 6 Account          │ p95 latency                           Bandwidth                           │
+                      │ 142ms                                 870 MB                              │
+                      ╰───────────────────────────────────────────────────────────────────────────╯
+
+                      ╭─ Requests · last 24 hours ────────────────────────────────────────────────╮
+                      │ 1.6k      ▁ ▂▆█▂▃▃                     ▄▁▄▆▇                       ▃▇▂▃▄▄ │
+                      │          ▃█▅██████▂▁                 ▂▇██████▇▆                 ▄█▆██████ │
+                      │         ▄███████████▇▅             ▅████████████▂▁           ▁ ▅█████████ │
+                      │        ▇██████████████▄▂        ▃▁████████████████▇         ▂█▆██████████ │
+                      │        ██████████████████▃  ▂  ▅███████████████████▅▄▃▄  ▂▃▄█████████████ │
+                      │        ███████████████████▇██▅█████████████████████████▅█████████████████ │
+                      │ 0      ██████████████████████████████████████████████████████████████████ │
+                      ╰──────────────────────────────────────────── 15 min buckets · c to switch ─╯
+
+                      ╭─ Hostnames ───────────────────────╮ ╭─ Pages · page ────────────────────╮
+                      │ shop.acme.com   ██████████ 61k    │ │ /               ██████████ 60%    │
+  p scope  [ ] range  c chart series  b breakdowns  ctrl+p commands  ? help  q quit
+```
+
+| Section   | What you get                                                                  |
+| --------- | ----------------------------------------------------------------------------- |
+| Overview  | Projects, service health, 24h visitors/requests/5xx, recent activity          |
+| Services  | Every service by project; open one for Overview, Resources, Deployments, Logs |
+| Analytics | Visitors, page views, errors, p95, request chart, pages/referrers/countries   |
+| Resources | Configured scale and live CPU/memory of every service, account usage          |
+| Cloud     | Managed databases (with metrics) and servers                                  |
+| Account   | Current billing cycle and invoices                                            |
+
+Keys: `ctrl+p` command palette (go to, open service, refresh, switch saved
+context, quit) · `1`-`6`/`tab` sections · `esc` back · `r` refresh (auto every
+15s) · `PgUp`/`PgDn` scroll · `?` help · `q` quit. On a service: `←`/`→` tabs, `s` scale editor, `d`
+deploy, `x` start/stop, `a` analytics for that service. In analytics: `p` scope
+(organization, production/preview, project or service), `[`/`]` range, `c` chart
+series, `b` breakdown dimensions. Writes (deploy, stop, scale) always ask first or
+need an explicit key in the scale editor.
+
+The npm package runs on Node, which OpenTUI does not support; `ubctl tui` there
+explains how to get the binary.
+
+## Interactive commands
+
+In the standalone binary, regular commands also help when a person is at the
+terminal. Nothing changes for scripts: prompts only appear when stdin and
+stdout are terminals, `--json` is off and `CI` is unset. Otherwise a missing
+argument fails exactly as before.
+
+| Command | Interactive behavior |
+| ------- | -------------------- |
+| `ubctl apps deploy` | Follows the deployment live: build log streams above a footer with stages and elapsed time. `q` detaches (it keeps running); `--detach` skips following. |
+| `ubctl apps services create` | With missing flags, asks for project, repository (connected GitHub repos first, with their branches), name and framework, then offers to deploy. |
+| `ubctl apps scale <id>` | With no flags, opens the dashboard's scale editor inline; `shift+d` saves and follows the deploy. |
+| `ubctl auth switch` | Pick a saved context from a list. |
+| Omitted ids | `apps deploy`, `apps deployments`, `apps scale`, `apps services get/logs/metrics/resources/enable/disable`, `db get/metrics/health/resize` let you pick from a list. |
+
+Lists filter as you type; `↑`/`↓` move, `enter` selects and `esc` cancels
+(exit code 130). Destructive commands such as `rm` always require an explicit
+id. Tables color statuses in a terminal; set `NO_COLOR=1` to turn that off.
+
 ## Observability and billing
 
 `ubctl` includes live and historical service metrics, retained runtime logs,
@@ -231,7 +310,7 @@ ubctl apps deploy svc_456 --wait
 # 5. Inspect, tail logs, see live metrics
 ubctl apps services get svc_456
 ubctl apps services logs svc_456
-ubctl apps services metrics svc_456
+ubctl apps services resources svc_456 --range 1h
 
 # 6. Add a custom domain (then point its DNS at Unbroker)
 ubctl apps domains add svc_456 store.example.com
@@ -322,8 +401,8 @@ ubctl db create \
   --name orders-db \
   --engine pg \
   --engine-version 16 \
-  --region nyc3 \
-  --size db-s-1vcpu-1gb \
+  --region <region> \
+  --size <node-size> \
   --nodes 1
 # → Provisioning database orders-db (db_321). status: provisioning
 
@@ -346,9 +425,14 @@ ubctl apps env set svc_456 DATABASE_URL "$(ubctl db connection db_321 --json | j
 
 # 6. Health at a glance
 ubctl db metrics db_321
+ubctl db health db_321          # connections, size and schema findings (PostgreSQL)
+
+# 7. Scale it in place (the cluster stays online while it migrates)
+ubctl db resize db_321 --size <node-size> --nodes 2
 ```
 
 Engines: `pg`, `mysql`, `redis`, `valkey`, `mongodb`, `kafka`, `opensearch`.
+Use the region and node-size slugs offered in Cloud → Databases → New.
 
 ---
 
@@ -384,6 +468,46 @@ ubctl beacon usage bcn_77
 
 `settings set` only changes the flags you pass — it reads the current settings
 first and overrides the rest, so you can tweak one thing at a time.
+
+---
+
+## Walkthrough 4 — traffic, resources and scale
+
+Traffic analytics are measured at your cell's ingress, so they need no client
+script. Scanner probes are excluded from the totals.
+
+```bash
+# 1. How is the storefront doing? (default range: last 24 hours)
+ubctl analytics --project prj_123
+ubctl analytics --service svc_456 --range 7d       # 30d, 3m and 12m also work
+ubctl analytics --env preview                       # only preview environments
+
+# 2. Where does the traffic come from?
+ubctl analytics top pages --service svc_456
+ubctl analytics top referrers --range 30d --limit 20
+ubctl analytics top country --json | jq -r '.rows[] | "\(.value) \(.requests)"'
+
+# 3. Is it running hot? Configured scale, live usage per pod, history
+ubctl apps services resources svc_456 --range 6h
+ubctl apps resources --project prj_123              # every service at once
+
+# 4. Scale it: autoscale 2-5 replicas at 70% CPU, 1 GiB per replica
+ubctl apps scale svc_456 --autoscale --min 2 --max 5 --target-cpu 70 \
+  --memory 1024 --dry-run                           # check first
+ubctl apps scale svc_456 --autoscale --min 2 --max 5 --target-cpu 70 \
+  --memory 1024 --deploy --wait                     # save and roll out
+```
+
+Scale changes are saved immediately and take effect on the next deployment;
+`--deploy` starts that deployment for you. `--cpu default` / `--memory default`
+return to the platform defaults. The CLI checks your tier's replica ceiling (3 on
+the shared tier) and `min ≤ max` before sending anything. Scheduled pre-warm
+windows (`--window …`) are available on dedicated cells.
+
+Plan notes: traffic beyond 24 hours, every `analytics top` breakdown, live
+resource usage and scaling require the Pro plan. Without it the commands return
+the API's `subscription_required` message (resources still show the configured
+scale).
 
 ---
 
@@ -461,6 +585,9 @@ ubctl apps services ls | get <id> | create <projectId> --name --repo --framework
 ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --volume-size --auto-deploy true|false]
 ubctl apps services security <id> --mode public|password|organization [--password <pw>]
 ubctl apps services rm <id> | logs <id> [--since <duration>] | metrics <id> [--since <duration>]
+ubctl apps services resources <id> [--range 15m|1h|6h|24h|7d|30d] | apps resources [--project <id>]
+ubctl apps scale <id> [--replicas <n>] [--cpu <m>|default] [--memory <Mi>|default] [--autoscale|--no-autoscale --min --max --target-cpu --target-memory]
+                      [--window|--no-window --window-min --window-start --window-end --window-days --window-tz] [--deploy [--wait]] [--dry-run]
 ubctl apps databases ls | get <id> | create <projectId> --name --engine postgres|redis|mongodb|mysql [--volume-size <gb>]
 ubctl apps databases connection <id> | tunnel <id> [--port <local-port>]
 ubctl apps volumes ls | attach <serviceId> --path <absolute-path> --size <gb> | resize <serviceId> --size <gb>
@@ -470,6 +597,8 @@ ubctl apps env ls <serviceId> | set <serviceId> <KEY> <VALUE> | rm <serviceId> <
 ubctl apps domains ls <serviceId> | status <serviceId> | add <serviceId> <hostname> | rm <serviceId> <hostname>
 ubctl apps deploy <serviceId> [--wait] [--timeout <s>] | deployments <serviceId> | deployment <id> [--log] | cancel <deploymentId> | rollback <serviceId> <deploymentId>
 ```
+
+`ubctl apps services scale` is the same command as `ubctl apps scale`.
 
 Frameworks: `next`, `astro`, `node`, `react`, `vue`, `vite`, `static`.
 
@@ -502,6 +631,17 @@ ubctl apps connections <consumer-service-id>
 ubctl apps disconnect <consumer-service-id> DATABASE_URL
 ```
 
+### Analytics
+
+```
+ubctl analytics [overview] [--service <id> | --project <id> | --env production|preview] [--range 24h|7d|30d|90d|365d] [--host <hostname>]
+ubctl analytics top <dimension> [scope flags] [--range …] [--limit 1-100]
+```
+
+Dimensions: `page`, `path`, `referer` (`referrers`), `country`, `device`,
+`browser`, `os`, `status`, `method`, `bot`, `utm_source`, `utm_medium`,
+`utm_campaign`, `protocol`, `scheme`, `tls`, `cache`. Range aliases: `3m`, `12m`.
+
 ### Beacon (realtime pub/sub)
 
 ```
@@ -516,7 +656,8 @@ ubctl beacon settings get <id> | set <id> [--origin <o> ...] [--anon-subscribe <
 
 ```
 ubctl db ls | get <id> | create --name --engine --engine-version --region --size [--nodes --storage --price --tag ...] | rm <id>
-ubctl db connection <id> | metrics <id>
+ubctl db connection <id> | metrics <id> | health <id>
+ubctl db resize <id> --size <slug> --nodes <n> [--storage <gb>]
 ubctl db users ls <id> | create <id> <name> | rm <id> <name>
 ubctl db dbs ls <id> | create <id> <name> | rm <id> <name>
 ```
@@ -549,10 +690,18 @@ ubctl team invitations ls | rm <id>
 ubctl notifications ls | read [id] | unread <id>
 ```
 
-### Cloud resources
+### Servers
 
 ```
-ubctl droplets ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
+ubctl servers ls | get <id> | reboot <id> | power-off <id> | power-on <id> | rm <id>
+```
+
+`ubctl droplets` remains an alias of `ubctl servers` for existing scripts.
+
+### Interactive dashboard
+
+```
+ubctl tui            # alias: ubctl ui; a bare `ubctl` in a terminal opens it when logged in
 ```
 
 ---
@@ -565,12 +714,10 @@ Do these in the web dashboard:
 
 - Creating, renaming or deleting organizations
 - Editing billing details and managing payment methods
-- Connecting/disconnecting a cloud provider (DigitalOcean) token
 - Toggling anomaly alerts
 - Accepting a team invitation, and the GitHub OAuth connect flow
 
-The CLI can still **read** all of these (`orgs billing`, `orgs connection`,
-`account alerts`, …).
+The CLI can still **read** these (`orgs billing`, `account alerts`, …).
 
 ---
 
@@ -581,14 +728,25 @@ Requires [Bun](https://bun.sh) 1.0+.
 ```bash
 bun install              # install dependencies
 bun run dev -- --help    # run the CLI from source
-bun run test             # run tests (node:test)
+bun run dev:tui          # run the interactive dashboard from source
+bun run test             # run CLI tests (node:test)
+bun run test:tui         # run dashboard interaction tests (bun test)
 bun run lint             # eslint
 bun run check-types      # tsc --noEmit
-bun run build            # bundle to dist/index.js
+bun run build            # bundle to dist/index.js (Node, without the dashboard)
+bun run build:binary     # standalone binary for this machine in out/ubctl
 ```
 
+The dashboard lives in `src/tui` (OpenTUI + Solid). It follows the opencode TUI
+layout: providers for theme, API session, routes, dialogs and toasts; a command
+palette; and per-route keybindings published to the footer. Tests render it
+headlessly against canned API responses (`src/tui/testing/fixtures.ts`).
+
 Releases are cut by pushing a `vX.Y.Z` tag; CI publishes the npm package and
-attaches the Linux/macOS binaries (see `.github/workflows/release.yml`).
+attaches the Linux/macOS binaries (see `.github/workflows/release.yml`). The
+binaries are cross-compiled with `bun scripts/build.ts --compile=all` after
+`bun install --os="*" --cpu="*"`, which fetches OpenTUI's native renderer for
+every target.
 
 ## License
 

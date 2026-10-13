@@ -1,9 +1,9 @@
 ---
 name: ubctl-ops
-description: "Operate Unbroker Cloud safely with the ubctl CLI: authenticate, inspect accounts and resources, deploy apps, manage databases and Beacon, configure domains and environment variables, troubleshoot failures, and automate commands in CI. Use whenever a task mentions ubctl, Unbroker Cloud, or managing Unbroker resources from a terminal or agent."
+description: "Operate Unbroker Cloud safely with the ubctl CLI: authenticate, inspect accounts and resources, deploy and scale apps, read traffic analytics and resource usage, manage databases and Beacon, configure domains and environment variables, troubleshoot failures, and automate commands in CI. Use whenever a task mentions ubctl, Unbroker Cloud, or managing Unbroker resources from a terminal or agent."
 metadata:
   author: unbroker-app
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Operate Unbroker Cloud with ubctl
@@ -39,12 +39,20 @@ This skill requires the `ubctl` executable and network access to an Unbroker API
 - Read-only inspection is safe when it advances the user's request. Create,
   update, deploy, invite, publish, switch-context, or delete only when the request
   authorizes that change.
+- Scaling (`ubctl apps scale`) changes cost and capacity: run it with
+  `--dry-run` first, state the before/after it prints, and only add `--deploy`
+  when the user wants the change rolled out now. Without `--deploy` the change
+  waits for the next deployment.
 - Before deletion, rollback, restore, power-off, token revocation, or another
   difficult-to-reverse action, state the exact target and preserve any CLI
   confirmation guard. Do not bypass a required `--confirm` value.
 - After a write, query the resulting resource or status and report its ID and
   observable outcome. For deployments, use `--wait` when the requested outcome
   depends on reaching a terminal state; a failed wait exits non-zero.
+- Never rely on interactive prompts. The standalone binary prompts (pickers,
+  wizards, a live deploy view) only when stdin and stdout are terminals and
+  `CI` is unset; agents should always pass explicit ids and flags, and use
+  `--wait` (or `--json`) for deployments so the command never waits on a key.
 - Use `--json` when parsing output. Do not scrape formatted tables. Check the exit
   status before trusting stdout, and use `jq -e` when a missing field should fail
   the workflow.
@@ -71,9 +79,13 @@ This skill requires the `ubctl` executable and network access to an Unbroker API
 ## Choose the command family
 
 - `apps`: projects, services, deployments, env vars, domains, volumes, backups,
-  self-hosted database services, connections, logs, and metrics.
+  self-hosted database services, connections, logs, metrics, resources
+  (`apps resources`, `apps services resources`) and scaling (`apps scale`).
+- `analytics`: traffic analytics (visitors, page views, requests, errors,
+  latency, bandwidth) and `analytics top <dimension>` breakdowns, scoped by
+  service, project, or environment.
 - `db`: managed database clusters, database users, logical databases,
-  connections, and metrics.
+  connections, metrics, health, and in-place resize.
 - `beacon`: realtime projects, access settings, channels, publishing, tokens,
   and usage.
 - `github`: connected installations, repositories, and branches. New GitHub OAuth
@@ -81,9 +93,13 @@ This skill requires the `ubctl` executable and network access to an Unbroker API
 - `account`, `billing`, and `monitoring`: usage, charges, invoices, budgets,
   alerts, and uptime checks.
 - `orgs`, `team`, `notifications`, `tokens`, and `auth`: account administration.
-- Cloud resource families such as `droplets`: infrastructure exposed through the
-  Unbroker reseller layer. Use root and subcommand help to discover what the
-  installed CLI supports.
+- `servers` (alias `droplets`): virtual servers and their power operations.
+- `tui`: an interactive full-screen dashboard for humans. Agents should not
+  launch it; use the scriptable commands with `--json` instead.
+
+Plan gating: traffic history beyond 24 hours, analytics breakdowns, live
+resource usage, and scaling require the Pro plan. A `402 subscription_required`
+error is a plan limit, not a malformed command; report it instead of retrying.
 
 For representative workflows and scripting patterns, read
 [references/workflows.md](references/workflows.md). For the complete current

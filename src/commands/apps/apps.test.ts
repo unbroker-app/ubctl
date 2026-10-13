@@ -26,7 +26,9 @@ test("the apps command group is registered with its subcommands", () => {
     "domains",
     "env",
     "projects",
+    "resources",
     "rollback",
+    "scale",
     "services",
     "volumes",
   ]);
@@ -66,4 +68,10 @@ test("apps projects/services expose their CRUD subcommands", () => {
   for (const c of ["ls", "get", "create", "rm", "logs", "metrics"]) {
     assert.ok(find(c, services), `services ${c} should exist`);
   }
+});
+
+test("services expose resources and scale", () => {
+  const services = find("services", find("apps", buildProgram())!)!;
+  for (const c of ["resources", "scale", "metrics"])
+    assert.ok(find(c, services), `apps services ${c} should exist`);
 });
