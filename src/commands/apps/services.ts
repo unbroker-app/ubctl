@@ -22,6 +22,15 @@ import {
 } from "../../util/validate";
 import { sinceEpoch } from "../../util/time-input";
 import { runDatabaseTunnel } from "./database-tunnel";
+import {
+  agree,
+  interactiveNow,
+  serviceId as resolveService,
+} from "../../interactive";
+import { createWizard } from "./create-wizard";
+import { runDeploy } from "./deployments";
+import { scaleCommand } from "./scale";
+import { serviceResourcesCommand } from "./resources";
 
 const FRAMEWORKS: Framework[] = [
   "next",
@@ -116,44 +125,48 @@ export function servicesCommand(): Command {
 
   withJson(
     services
-      .command("get <id>")
+      .command("get [id]")
       .description("Show a service")
-      .action(async (id: string, _opts: unknown, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const { service } = await client.get<ServiceResponse>(
-          `/apps/services/${id}`,
-        );
-        if (ctx.json) return printJson(service);
-        print(`id:        ${service.id}`);
-        print(`name:      ${service.name} (${service.slug})`);
-        print(`repo:      ${service.repoUrl} @ ${service.branch}`);
-        print(`framework: ${service.framework}`);
-        print(
-          `status:    ${service.status}${service.needsRedeploy ? " (needs redeploy)" : ""}`,
-        );
-        print(
-          `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
-        );
-        if (service.domains.length)
-          print(`domains:   ${service.domains.join(", ")}`);
-        print(`created:   ${age(service.createdAt)}`);
-      }),
+      .action(
+        async (idArg: string | undefined, _opts: unknown, cmd: Command) => {
+          const { ctx, client } = authed(cmd);
+          const id = await resolveService(ctx, client, idArg);
+          const { service } = await client.get<ServiceResponse>(
+            `/apps/services/${id}`,
+          );
+          if (ctx.json) return printJson(service);
+          print(`id:        ${service.id}`);
+          print(`name:      ${service.name} (${service.slug})`);
+          print(`repo:      ${service.repoUrl} @ ${service.branch}`);
+          print(`framework: ${service.framework}`);
+          print(
+            `status:    ${service.status}${service.needsRedeploy ? " (needs redeploy)" : ""}`,
+          );
+          print(
+            `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
+          );
+          if (service.domains.length)
+            print(`domains:   ${service.domains.join(", ")}`);
+          print(`created:   ${age(service.createdAt)}`);
+        },
+      ),
   );
 
   withJson(
     services
-      .command("create <projectId>")
-      .description("Create a service in a project")
-      .requiredOption("--name <name>", "service name")
+      .command("create [projectId]")
+      .description(
+        "Create a service in a project (asks for anything missing in a terminal)",
+      )
+      .option("--name <name>", "service name")
       .addOption(
-        new Option("--repo <url>", "HTTPS GitHub, GitLab or Bitbucket URL")
-          .argParser(repositoryUrl)
-          .makeOptionMandatory(),
+        new Option(
+          "--repo <url>",
+          "HTTPS GitHub, GitLab or Bitbucket URL",
+        ).argParser(repositoryUrl),
       )
       .addOption(
-        new Option("--framework <fw>", "framework")
-          .choices(FRAMEWORKS)
-          .makeOptionMandatory(),
+        new Option("--framework <fw>", "framework").choices(FRAMEWORKS),
       )
       .option("--branch <branch>", "git branch", "main")
       .option("--build <cmd>", "build command override")
@@ -185,39 +198,84 @@ export function servicesCommand(): Command {
           positiveInteger(value, "GitHub installation id"),
         ),
       )
-      .action(async (projectId: string, opts: CreateOpts, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const body: Record<string, unknown> = {
-          name: opts.name,
-          repoUrl: opts.repo,
-          branch: opts.branch,
-          framework: opts.framework,
-        };
-        if (opts.build) body.buildCommand = opts.build;
-        if (opts.start) body.startCommand = opts.start;
-        if (opts.port !== undefined) body.port = opts.port;
-        if (opts.outputDir) body.outputDir = opts.outputDir;
-        if (opts.rootDir) body.rootDir = opts.rootDir;
-        if ((opts.volumePath === undefined) !== (opts.volumeSize === undefined))
-          throw new CliError(
-            "A volume needs both --volume-path and --volume-size.",
-          );
-        if (opts.volumePath) {
-          body.volumePath = opts.volumePath;
-          body.volumeSizeGb = opts.volumeSize;
-        }
-        if (opts.githubInstallation)
-          body.githubInstallationId = opts.githubInstallation;
+      .action(
+        async (
+          projectArg: string | undefined,
+          given: Partial<CreateOpts>,
+          cmd: Command,
+        ) => {
+          const { ctx, client } = authed(cmd);
+          const interactive = await interactiveNow(ctx);
+          const missing = !given.name || !given.repo || !given.framework;
+          if (missing && !interactive) {
+            // Same wording Commander used when these options were mandatory.
+            if (!projectArg)
+              throw new CliError("missing required argument 'projectId'");
+            const flag = !given.name
+              ? "--name <name>"
+              : !given.repo
+                ? "--repo <url>"
+                : "--framework <fw>";
+            throw new CliError(`required option '${flag}' not specified`);
+          }
+          const answers =
+            missing || !projectArg
+              ? await createWizard(
+                  ctx,
+                  client,
+                  {
+                    ...given,
+                    projectId: projectArg,
+                    branchGiven: cmd.getOptionValueSource("branch") === "cli",
+                  },
+                  repositoryUrl,
+                )
+              : undefined;
+          const opts = { ...given, ...answers } as CreateOpts;
+          const projectId = answers?.projectId ?? projectArg!;
+          const body: Record<string, unknown> = {
+            name: opts.name,
+            repoUrl: opts.repo,
+            branch: opts.branch,
+            framework: opts.framework,
+          };
+          if (opts.build) body.buildCommand = opts.build;
+          if (opts.start) body.startCommand = opts.start;
+          if (opts.port !== undefined) body.port = opts.port;
+          if (opts.outputDir) body.outputDir = opts.outputDir;
+          if (opts.rootDir) body.rootDir = opts.rootDir;
+          if (
+            (opts.volumePath === undefined) !==
+            (opts.volumeSize === undefined)
+          )
+            throw new CliError(
+              "A volume needs both --volume-path and --volume-size.",
+            );
+          if (opts.volumePath) {
+            body.volumePath = opts.volumePath;
+            body.volumeSizeGb = opts.volumeSize;
+          }
+          if (opts.githubInstallation)
+            body.githubInstallationId = opts.githubInstallation;
 
-        const { service } = await client.post<ServiceResponse>(
-          `/apps/projects/${projectId}/services`,
-          body,
-        );
-        if (ctx.json) return printJson(service);
-        print(`Created service ${service.name} (${service.id})`);
-        print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
-        print(`Deploy it with: ubctl apps deploy ${service.id} --wait`);
-      }),
+          const { service } = await client.post<ServiceResponse>(
+            `/apps/projects/${projectId}/services`,
+            body,
+          );
+          if (ctx.json) return printJson(service);
+          print(`Created service ${service.name} (${service.id})`);
+          print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
+          // Only offer when the wizard ran: a fully specified command (a
+          // script, an agent in a PTY) must finish without a question.
+          if (answers && (await agree("Deploy it now?", true)))
+            return runDeploy(client, service.id, {
+              live: true,
+              timeoutMs: 30 * 60_000,
+              json: false,
+            });
+          print(`Deploy it with: ubctl apps deploy ${service.id} --wait`);
+        },
+      ),
   );
 
   withJson(
@@ -322,108 +380,136 @@ export function servicesCommand(): Command {
 
   withJson(
     services
-      .command("logs <id>")
+      .command("logs [id]")
       .description("Show runtime logs")
       .option(
         "--since <duration>",
         "show retained logs since 30m, 2h, an ISO time, or epoch ms",
       )
-      .action(async (id: string, opts: { since?: string }, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        if (opts.since) {
-          const since = sinceEpoch(opts.since);
-          const { logs } = await client.get<LogsHistoryResponse>(
-            `/apps/services/${id}/logs/history?since=${since}`,
+      .action(
+        async (
+          idArg: string | undefined,
+          opts: { since?: string },
+          cmd: Command,
+        ) => {
+          const { ctx, client } = authed(cmd);
+          const id = await resolveService(ctx, client, idArg);
+          if (opts.since) {
+            const since = sinceEpoch(opts.since);
+            const { logs } = await client.get<LogsHistoryResponse>(
+              `/apps/services/${id}/logs/history?since=${since}`,
+            );
+            if (ctx.json) return printJson(logs);
+            for (const entry of logs)
+              print(
+                `${new Date(entry.observedAt).toISOString()}  ${entry.line}`,
+              );
+            return;
+          }
+          const { logs } = await client.get<LogsResponse>(
+            `/apps/services/${id}/logs`,
           );
           if (ctx.json) return printJson(logs);
-          for (const entry of logs)
-            print(`${new Date(entry.observedAt).toISOString()}  ${entry.line}`);
-          return;
-        }
-        const { logs } = await client.get<LogsResponse>(
-          `/apps/services/${id}/logs`,
-        );
-        if (ctx.json) return printJson(logs);
-        for (const line of logs) print(line);
-      }),
+          for (const line of logs) print(line);
+        },
+      ),
   );
 
   withJson(
     services
-      .command("metrics <id>")
+      .command("metrics [id]")
       .description("Show live CPU/memory/replica metrics")
       .option(
         "--since <duration>",
         "show retained metrics since 30m, 2h, an ISO time, or epoch ms",
       )
-      .action(async (id: string, opts: { since?: string }, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        if (opts.since) {
-          const since = sinceEpoch(opts.since);
-          const { metrics } = await client.get<MetricsHistoryResponse>(
-            `/apps/services/${id}/metrics/history?since=${since}`,
+      .action(
+        async (
+          idArg: string | undefined,
+          opts: { since?: string },
+          cmd: Command,
+        ) => {
+          const { ctx, client } = authed(cmd);
+          const id = await resolveService(ctx, client, idArg);
+          if (opts.since) {
+            const since = sinceEpoch(opts.since);
+            const { metrics } = await client.get<MetricsHistoryResponse>(
+              `/apps/services/${id}/metrics/history?since=${since}`,
+            );
+            if (ctx.json) return printJson(metrics);
+            printTable(
+              metrics.map((m) => ({
+                time: new Date(m.capturedAt).toISOString(),
+                replicas: `${m.readyReplicas}/${m.desiredReplicas}`,
+                cpu: m.cpuMillicores ?? "-",
+                memory: m.memoryMiB ?? "-",
+                restarts: m.restarts,
+                unhealthy: m.unhealthyPods,
+              })),
+              [
+                { key: "time", header: "time" },
+                { key: "replicas", header: "replicas" },
+                { key: "cpu", header: "cpu(m)" },
+                { key: "memory", header: "mem(Mi)" },
+                { key: "restarts", header: "restarts" },
+                { key: "unhealthy", header: "unhealthy" },
+              ],
+            );
+            return;
+          }
+          const { metrics } = await client.get<MetricsResponse>(
+            `/apps/services/${id}/metrics`,
           );
           if (ctx.json) return printJson(metrics);
-          printTable(
-            metrics.map((m) => ({
-              time: new Date(m.capturedAt).toISOString(),
-              replicas: `${m.readyReplicas}/${m.desiredReplicas}`,
-              cpu: m.cpuMillicores ?? "-",
-              memory: m.memoryMiB ?? "-",
-              restarts: m.restarts,
-              unhealthy: m.unhealthyPods,
-            })),
-            [
-              { key: "time", header: "time" },
-              { key: "replicas", header: "replicas" },
-              { key: "cpu", header: "cpu(m)" },
-              { key: "memory", header: "mem(Mi)" },
-              { key: "restarts", header: "restarts" },
-              { key: "unhealthy", header: "unhealthy" },
-            ],
+          if (!metrics) {
+            print("No metrics — the service isn't running.");
+            return;
+          }
+          print(
+            `replicas: ${metrics.replicas.ready}/${metrics.replicas.desired} ready`,
           );
-          return;
-        }
-        const { metrics } = await client.get<MetricsResponse>(
-          `/apps/services/${id}/metrics`,
-        );
-        if (ctx.json) return printJson(metrics);
-        if (!metrics) {
-          print("No metrics — the service isn't running.");
-          return;
-        }
-        print(
-          `replicas: ${metrics.replicas.ready}/${metrics.replicas.desired} ready`,
-        );
-        print(
-          `limits:   ${metrics.limits.cpuMillicores}m CPU, ${metrics.limits.memoryMiB}Mi memory`,
-        );
-        printTable(metrics.pods, [
-          { key: "name", header: "pod" },
-          { key: "cpuMillicores", header: "cpu(m)" },
-          { key: "memoryMiB", header: "mem(Mi)" },
-          { key: "ready", header: "ready" },
-        ]);
-      }),
+          print(
+            `limits:   ${metrics.limits.cpuMillicores}m CPU, ${metrics.limits.memoryMiB}Mi memory`,
+          );
+          printTable(metrics.pods, [
+            { key: "pod", header: "pod" },
+            { key: "state", header: "state" },
+            { key: "cpuMillicores", header: "cpu(m)" },
+            { key: "memoryMiB", header: "mem(Mi)" },
+            { key: "restarts", header: "restarts" },
+          ]);
+        },
+      ),
   );
 
   for (const state of ["enable", "disable"] as const) {
     withJson(
       services
-        .command(`${state} <id>`)
+        .command(`${state} [id]`)
         .description(`${state === "enable" ? "Start" : "Stop"} a service`)
-        .action(async (id: string, _opts: unknown, cmd: Command) => {
-          const { ctx, client } = authed(cmd);
-          const { service } = await client.post<ServiceResponse>(
-            `/apps/services/${id}/${state}`,
-          );
-          if (ctx.json) return printJson(service);
-          print(
-            `${state === "enable" ? "Enabled" : "Disabled"} ${service.name} (${service.status})`,
-          );
-        }),
+        .action(
+          async (idArg: string | undefined, _opts: unknown, cmd: Command) => {
+            const { ctx, client } = authed(cmd);
+            // Offer only services the action applies to.
+            const id = await resolveService(ctx, client, idArg, (s) =>
+              state === "enable"
+                ? s.status === "stopped"
+                : s.status !== "stopped",
+            );
+            const { service } = await client.post<ServiceResponse>(
+              `/apps/services/${id}/${state}`,
+            );
+            if (ctx.json) return printJson(service);
+            print(
+              `${state === "enable" ? "Enabled" : "Disabled"} ${service.name} (${service.status})`,
+            );
+          },
+        ),
     );
   }
+
+  services.addCommand(serviceResourcesCommand());
+  services.addCommand(scaleCommand());
 
   return services;
 }

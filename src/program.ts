@@ -16,13 +16,14 @@ import { monitoringCommand } from "./commands/monitoring";
 import { authCommand } from "./commands/auth";
 import { completionCommand } from "./commands/completion";
 import { doctorCommand } from "./commands/doctor";
-import { resellerCommands } from "./commands/reseller";
+import { cloudCommands } from "./commands/cloud";
+import { analyticsCommand } from "./commands/analytics";
+import { tuiCommand } from "./commands/tui";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
  * tests can construct a fresh program and exercise it without spawning a
- * process. Resource subcommands (apps, tokens, droplets, …) are registered here
- * in later PRs.
+ * process.
  */
 export function buildProgram(): Command {
   const program = new Command();
@@ -53,6 +54,7 @@ export function buildProgram(): Command {
 
   // Products
   program.addCommand(appsCommand());
+  program.addCommand(analyticsCommand());
   program.addCommand(beaconCommand());
   program.addCommand(githubCommand());
 
@@ -65,8 +67,9 @@ export function buildProgram(): Command {
   program.addCommand(teamCommand());
   program.addCommand(notificationsCommand());
 
-  // Cloud resources (DigitalOcean reseller layer)
-  for (const c of resellerCommands()) program.addCommand(c);
+  // Cloud resources (servers, managed databases)
+  for (const c of cloudCommands()) program.addCommand(c);
+  program.addCommand(tuiCommand());
   program.addCommand(completionCommand());
   program.addCommand(doctorCommand());
 

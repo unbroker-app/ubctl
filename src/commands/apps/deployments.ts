@@ -1,5 +1,6 @@
 import { Command, Option } from "commander";
 import type {
+  ServiceResponse,
   DeploymentResponse,
   DeploymentsResponse,
   DeploymentStatus,
@@ -9,16 +10,33 @@ import { CliError } from "../../util/errors";
 import { print, printJson, printTable } from "../../util/output";
 import { age, duration } from "../../util/format";
 import { positiveNumber } from "../../util/validate";
+import type { ApiClient } from "../../api/client";
+import {
+  Cancelled,
+  followDeploy,
+  interactiveNow,
+  serviceId as resolveService,
+} from "../../interactive";
+import { color, statusText } from "../../util/color";
 
-const TERMINAL: DeploymentStatus[] = ["live", "failed", "superseded"];
+const FAILED: DeploymentStatus[] = ["failed", "cancelled"];
+const TERMINAL: DeploymentStatus[] = [
+  "live",
+  "failed",
+  "superseded",
+  "cancelled",
+];
 
-/** `ubctl apps deploy <serviceId> [--wait]` */
+/** `ubctl apps deploy [serviceId] [--wait | --detach]` */
 export function deployCommand(): Command {
   return withJson(
     new Command("deploy")
-      .description("Trigger a deployment for a service")
-      .argument("<serviceId>", "service id")
+      .description(
+        "Trigger a deployment for a service (follows it live in a terminal)",
+      )
+      .argument("[serviceId]", "service id (picked interactively if omitted)")
       .option("--wait", "poll until the deployment finishes")
+      .option("--detach", "queue it and return without following")
       .addOption(
         new Option("--timeout <seconds>", "max seconds to wait with --wait")
           .argParser((value) => positiveNumber(value, "timeout"))
@@ -26,46 +44,128 @@ export function deployCommand(): Command {
       )
       .action(
         async (
-          serviceId: string,
-          opts: { wait?: boolean; timeout: number; json?: boolean },
+          serviceArg: string | undefined,
+          opts: {
+            wait?: boolean;
+            detach?: boolean;
+            timeout: number;
+            json?: boolean;
+          },
           cmd: Command,
         ) => {
           const { ctx, client } = authed(cmd);
-          const { deployment } = await client.post<DeploymentResponse>(
-            `/apps/services/${serviceId}/deployments`,
-            {},
-          );
-
-          if (!opts.wait) {
-            if (ctx.json) return printJson(deployment);
-            print(`Queued deployment ${deployment.id} (${deployment.status})`);
-            print(
-              `Follow it with: ubctl apps deployment ${deployment.id} --log`,
-            );
-            return;
-          }
-
-          const final = await poll(
-            client,
-            deployment.id,
-            opts.timeout * 1000,
-            !ctx.json,
-          );
-          if (ctx.json) return printJson(final);
-          print(
-            `Deployment ${final.id} → ${final.status} (${duration(
-              final.createdAt,
-              final.finishedAt,
-            )})`,
-          );
-          if (final.status === "failed") {
-            print("--- build log (tail) ---");
-            print(tail(final.buildLog, 20));
-            throw new CliError("deployment failed");
-          }
+          const serviceId = await resolveService(ctx, client, serviceArg);
+          await runDeploy(client, serviceId, {
+            wait: opts.wait,
+            detach: opts.detach,
+            // Picking the service means a person is driving: follow live.
+            live: !serviceArg,
+            timeoutMs: opts.timeout * 1000,
+            json: ctx.json,
+          });
         },
       ),
   );
+}
+
+/**
+ * Queue a deployment and, with `wait`, follow it to a terminal state. Shared
+ * by `apps deploy`, `apps scale --deploy` and the interactive flows; throws
+ * when the wait doesn't end in success so the process exits non-zero.
+ *
+ * At an interactive terminal the wait is shown live (build log streaming
+ * above a progress footer). That happens for `--wait`, or with `live` when a
+ * person drove the flow (picked the service, the create wizard, the scale
+ * editor). A plain `apps deploy <id>` still queues and returns, as scripts
+ * expect.
+ */
+export async function runDeploy(
+  client: ApiClient,
+  serviceId: string,
+  opts: {
+    wait?: boolean;
+    detach?: boolean;
+    /** Follow live even without --wait (interactive flows). */
+    live?: boolean;
+    timeoutMs: number;
+    json: boolean;
+  },
+): Promise<void> {
+  const { deployment } = await client.post<DeploymentResponse>(
+    `/apps/services/${serviceId}/deployments`,
+    {},
+  );
+
+  const follow = !opts.detach && (opts.wait || opts.live);
+  if (follow && (await interactiveNow(opts))) {
+    const label = await client
+      .get<ServiceResponse>(`/apps/services/${serviceId}`)
+      .then((r) => r.service.name)
+      .catch(() => serviceId);
+    const result = await followDeploy(
+      client,
+      deployment.id,
+      label,
+      opts.wait ? opts.timeoutMs : 30 * 60_000,
+    );
+    const check = `ubctl apps deployment ${deployment.id}`;
+    if (result.kind === "error")
+      throw new CliError(
+        `following ${deployment.id} failed: ${result.message}`,
+      );
+    if (result.kind === "detached") {
+      const last = result.deployment?.status ?? deployment.status;
+      if (result.reason === "timeout")
+        throw new CliError(
+          `timed out waiting for deployment ${deployment.id} (last: ${last})`,
+        );
+      print(
+        `${color.muted("…")} Stopped following — ${deployment.id} keeps running (${last}). Check it with: ${check}`,
+      );
+      // Leaving a --wait early must not read as success to whatever runs next.
+      if (result.reason === "interrupt") throw new Cancelled();
+      if (opts.wait)
+        throw new CliError(
+          `detached before deployment ${deployment.id} finished`,
+        );
+      return;
+    }
+    const final = result.deployment;
+    const took = duration(final.createdAt, final.finishedAt);
+    if (FAILED.includes(final.status)) {
+      print(
+        `${color.error("✘")} Deployment ${final.id} ${statusText(final.status)} after ${took}`,
+      );
+      throw new CliError(`deployment ${final.status}`);
+    }
+    print(
+      `${color.success("✔")} Deployment ${final.id} ${statusText(final.status)} in ${took}`,
+    );
+    return;
+  }
+
+  if (!opts.wait) {
+    if (opts.json) return printJson(deployment);
+    print(`Queued deployment ${deployment.id} (${deployment.status})`);
+    print(
+      `Follow it with: ubctl apps deployment ${deployment.id} --log (or deploy with --wait)`,
+    );
+    return;
+  }
+
+  const final = await poll(client, deployment.id, opts.timeoutMs, !opts.json);
+  if (opts.json) return printJson(final);
+  print(
+    `Deployment ${final.id} → ${final.status} (${duration(
+      final.createdAt,
+      final.finishedAt,
+    )})`,
+  );
+  if (FAILED.includes(final.status)) {
+    print("--- build log (tail) ---");
+    print(tail(final.buildLog, 20));
+    throw new CliError(`deployment ${final.status}`);
+  }
 }
 
 /** `ubctl apps deployments <serviceId>` */
@@ -73,30 +173,37 @@ export function deploymentsCommand(): Command {
   return withJson(
     new Command("deployments")
       .description("List a service's deployments")
-      .argument("<serviceId>", "service id")
-      .action(async (serviceId: string, _opts: unknown, cmd: Command) => {
-        const { ctx, client } = authed(cmd);
-        const { deployments } = await client.get<DeploymentsResponse>(
-          `/apps/services/${serviceId}/deployments`,
-        );
-        if (ctx.json) return printJson(deployments);
-        printTable(
-          deployments.map((d) => ({
-            ...d,
-            commit: d.commitSha?.slice(0, 7) ?? "-",
-            created: age(d.createdAt),
-            took: duration(d.createdAt, d.finishedAt),
-          })),
-          [
-            { key: "id", header: "id" },
-            { key: "status", header: "status" },
-            { key: "trigger", header: "trigger" },
-            { key: "commit", header: "commit" },
-            { key: "created", header: "created" },
-            { key: "took", header: "took" },
-          ],
-        );
-      }),
+      .argument("[serviceId]", "service id (picked interactively if omitted)")
+      .action(
+        async (
+          serviceArg: string | undefined,
+          _opts: unknown,
+          cmd: Command,
+        ) => {
+          const { ctx, client } = authed(cmd);
+          const serviceId = await resolveService(ctx, client, serviceArg);
+          const { deployments } = await client.get<DeploymentsResponse>(
+            `/apps/services/${serviceId}/deployments`,
+          );
+          if (ctx.json) return printJson(deployments);
+          printTable(
+            deployments.map((d) => ({
+              ...d,
+              commit: d.commitSha?.slice(0, 7) ?? "-",
+              created: age(d.createdAt),
+              took: duration(d.createdAt, d.finishedAt),
+            })),
+            [
+              { key: "id", header: "id" },
+              { key: "status", header: "status" },
+              { key: "trigger", header: "trigger" },
+              { key: "commit", header: "commit" },
+              { key: "created", header: "created" },
+              { key: "took", header: "took" },
+            ],
+          );
+        },
+      ),
   );
 }
 

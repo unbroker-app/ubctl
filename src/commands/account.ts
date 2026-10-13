@@ -99,7 +99,7 @@ export function accountCommand(): Command {
           print(`Projected:     ${usd(usage.projected)}`);
           print(`Run rate:      ${usd(usage.runRate)}/mo`);
           print(
-            `Resources:     ${usage.droplets}/${usage.dropletLimit} droplets, ${usage.vcpus} vCPU, ${usage.memoryGb}GB RAM, ${usage.storageGb}GB storage`,
+            `Resources:     ${usage.droplets}/${usage.dropletLimit} servers, ${usage.vcpus} vCPU, ${usage.memoryGb}GB RAM, ${usage.storageGb}GB storage`,
           );
         },
       ),

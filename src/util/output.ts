@@ -1,3 +1,5 @@
+import { color, statusText } from "./color";
+
 /** Print a value as pretty JSON (used when `--json` is set). */
 export function printJson(value: unknown): void {
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
@@ -46,6 +48,9 @@ export function printPanel(
   print(`╰${"─".repeat(innerWidth)}╯`);
 }
 
+/** Columns whose values are statuses get colored in an interactive terminal. */
+const STATUS_COLUMNS = new Set(["status", "state"]);
+
 /**
  * Render an array of records as a left-aligned text table. Columns are the
  * given keys; missing/empty values render as "-". Kept dependency-free.
@@ -67,12 +72,24 @@ export function printTable<T>(
   const widths = columns.map((c, i) =>
     Math.max(c.header.length, ...cells.map((r) => r[i]!.length)),
   );
-  const fmt = (parts: string[]) =>
+  const styled = (text: string, i: number) =>
+    STATUS_COLUMNS.has(String(columns[i]!.key)) ? statusText(text) : text;
+  const fmt = (parts: string[], style: boolean) =>
     parts
-      .map((p, i) => p.padEnd(widths[i]!))
+      .map((p, i) => {
+        const padded = p.padEnd(widths[i]!);
+        return style ? styled(p, i) + padded.slice(p.length) : padded;
+      })
       .join("  ")
       .trimEnd();
 
-  print(fmt(columns.map((c) => c.header.toUpperCase())));
-  for (const row of cells) print(fmt(row));
+  print(
+    color.muted(
+      fmt(
+        columns.map((c) => c.header.toUpperCase()),
+        false,
+      ),
+    ),
+  );
+  for (const row of cells) print(fmt(row, true));
 }

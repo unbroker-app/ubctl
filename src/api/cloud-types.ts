@@ -1,5 +1,6 @@
-/** DigitalOcean-reseller resource shapes (the fields the CLI displays). */
+/** Cloud resource shapes: servers and managed databases (the fields the CLI displays). */
 
+/** A server (the API keeps its historical `droplet` resource name). */
 export interface Droplet {
   id: string;
   name: string;
@@ -87,4 +88,28 @@ export interface LogicalDbResponse {
 }
 export interface DatabaseMetricsResponse {
   metrics: DatabaseMetrics;
+}
+
+export interface DatabaseHealthFinding {
+  id: string;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  detail: string;
+}
+
+/** On-demand health inspection (PostgreSQL clusters; others report unsupported). */
+export interface DatabaseHealth {
+  available: boolean;
+  supported: boolean;
+  status: "healthy" | "warning" | "critical" | "unavailable";
+  collectedAt: number;
+  durationMs: number;
+  engine: string;
+  version?: string;
+  databaseSizeBytes?: number;
+  connections?: { active: number; total: number; max: number };
+  findings: DatabaseHealthFinding[];
+}
+export interface DatabaseHealthResponse {
+  health: DatabaseHealth;
 }

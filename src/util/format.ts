@@ -25,3 +25,22 @@ export function duration(
   const mins = Math.floor(secs / 60);
   return `${mins}m${secs % 60}s`;
 }
+
+/** Human-friendly byte size: 512 B, 1.2 KB, 3.4 GB (decimal units). */
+export function bytes(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "-";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let value = n;
+  let unit = 0;
+  while (Math.abs(value) >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit++;
+  }
+  return `${unit === 0 ? Math.round(value) : value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
+}
+
+/** Latency in ms as "85ms" or "1.2s". */
+export function millis(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined || !Number.isFinite(ms)) return "-";
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+}

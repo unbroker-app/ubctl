@@ -22,12 +22,15 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "bun build src/index.ts --target=node --outfile=dist/index.js --banner=\"#!/usr/bin/env node\"",
+    "build": "bun scripts/build.ts",
     "prepublishOnly": "bun run build",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --import tsx --test $(find src -name '*.test.ts')",
-    "format": "prettier --write ."
+    "test": "NO_COLOR=1 node --import tsx --test $(find src -name '*.test.ts')",
+    "format": "prettier --write .",
+    "build:binary": "bun scripts/build.ts --compile",
+    "dev:tui": "bun src/index.ts tui",
+    "test:tui": "bun test src/tui"
   },
   "dependencies": {
     "commander": "^13.1.0",
@@ -35,11 +38,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@opentui/core": "0.5.12",
+    "@opentui/solid": "0.5.12",
     "@types/node": "^22.15.3",
     "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.1",
     "prettier": "^3.4.2",
+    "solid-js": "1.9.12",
     "tsx": "^4.19.2",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.50.0"

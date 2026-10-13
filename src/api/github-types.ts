@@ -11,6 +11,8 @@ export interface GithubRepo {
   htmlUrl: string;
   private: boolean;
   defaultBranch: string;
+  /** The GitHub App installation that grants access to this repo. */
+  installationId?: number;
 }
 
 export interface GithubConfig {

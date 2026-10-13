@@ -91,17 +91,41 @@ ubctl db create \
   --name orders \
   --engine pg \
   --engine-version 16 \
-  --region fra1 \
-  --size db-s-1vcpu-1gb
+  --region <region-slug> \
+  --size <node-size-slug>
 
 ubctl db get db_321
 ubctl db users create db_321 app_user
 ubctl db dbs create db_321 analytics
 ubctl db metrics db_321
+ubctl db health db_321
+ubctl db resize db_321 --size <node-size-slug> --nodes 2
 ```
 
 Never invent engine, version, region, or size values. Obtain valid choices from
 the user's requirements, prior resource data, or command help/API output.
+
+## Traffic, resources, and scale
+
+```bash
+ubctl analytics --service svc_456 --range 7d --json \
+  | jq '{visitors: .totals.uniques, requests: .totals.requests, p95: .totals.p95}'
+ubctl analytics top pages --project prj_123 --limit 10 --json
+ubctl apps services resources svc_456 --range 1h --json
+ubctl apps resources --json | jq '.services[] | {id: .service.id, live: .live.state}'
+
+ubctl apps scale svc_456 --autoscale --min 2 --max 5 --target-cpu 70 --dry-run
+ubctl apps scale svc_456 --autoscale --min 2 --max 5 --target-cpu 70 --deploy --wait
+ubctl apps services resources svc_456
+```
+
+Analytics totals exclude scanner probes; `visitorsUnavailable: true` means the
+cell cannot count visitors, not that there were none. Base a scale proposal on
+`resources` output (usage against limits, restarts, ready replicas) rather than
+guessing. The shared tier allows at most 3 replicas; the CLI rejects higher
+values before sending. `--cpu default` and `--memory default` restore platform
+defaults. After a scale without `--deploy`, the service reports
+`needsRedeploy: true` until the next deployment.
 
 ## Connect application resources
 

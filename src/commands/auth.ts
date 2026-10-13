@@ -7,6 +7,9 @@ import {
 } from "../config/store";
 import { print, printTable } from "../util/output";
 import { contextName } from "../util/validate";
+import { resolveContext } from "../context";
+import { CliError } from "../util/errors";
+import { interactiveNow, pick } from "../interactive";
 
 export function authCommand(): Command {
   const auth = new Command("auth").description(
@@ -43,12 +46,34 @@ export function authCommand(): Command {
       print(`Saved and selected context ${name}`);
     });
   auth
-    .command("switch <name>")
-    .description("Switch to a named context")
-    .action((name: string) => {
-      switchContext(contextName(name));
-      print(`Switched to context ${name}`);
-    });
+    .command("switch [name]")
+    .description("Switch to a named context (pick one if omitted)")
+    .action(
+      async (nameArg: string | undefined, _opts: unknown, cmd: Command) => {
+        let name = nameArg;
+        if (!name) {
+          const config = loadConfig();
+          const contexts = Object.entries(config.contexts ?? {});
+          if (!(await interactiveNow(resolveContext(cmd.optsWithGlobals()))))
+            throw new CliError("missing required argument 'name'");
+          if (contexts.length === 0)
+            throw new CliError(
+              "no saved contexts — add one with `ubctl login --context <name>`",
+            );
+          name = await pick({
+            message: "Context",
+            initial: config.currentContext,
+            choices: contexts.map(([key, value]) => ({
+              title: key,
+              value: key,
+              hint: `${value.org ?? "-"}${key === config.currentContext ? " · current" : ""}`,
+            })),
+          });
+        }
+        switchContext(contextName(name));
+        print(`Switched to context ${name}`);
+      },
+    );
   auth
     .command("rm <name>")
     .description("Remove a named context")

@@ -10,7 +10,43 @@ ubctl apps services logs <serviceId> --since 30m
 
 `--since` accepts durations (`30s`, `15m`, `2h`, `7d`), ISO timestamps, or
 epoch milliseconds. Historical service data is retained by the control plane
-for seven days. JSON output preserves the complete API response.
+for seven days. JSON output preserves the complete API response. Live pod rows
+show the pod name, container state (for example `CrashLoopBackOff`), CPU,
+memory and restarts; CPU and memory are `-` until the metrics server has a
+sample.
+
+## Resources and scale
+
+```bash
+ubctl apps services resources <serviceId>              # scale, limits, live usage per pod
+ubctl apps services resources <serviceId> --range 24h  # plus CPU/memory/network history
+ubctl apps resources [--project <projectId>]           # every service + account totals
+ubctl apps scale <serviceId> --replicas 3 --memory 1024
+ubctl apps scale <serviceId> --autoscale --min 2 --max 5 --target-cpu 70 --deploy --wait
+```
+
+Usage is shown against the per-replica limits actually applied to the running
+pods. Live usage needs the Pro plan; without it the commands still print the
+configured scale. Scale changes are saved immediately and apply on the next
+deployment (`--deploy` starts it). `--dry-run` validates without saving.
+
+## Traffic analytics
+
+```bash
+ubctl analytics                                     # organization, last 24 hours
+ubctl analytics --project <projectId> --range 30d   # 7d, 30d, 3m (90d), 12m (365d)
+ubctl analytics --service <serviceId> --host shop.example.com
+ubctl analytics --env preview
+ubctl analytics top pages --range 7d --limit 20
+ubctl analytics top referrers --json
+```
+
+Totals come from the cell's ingress: visitors (unique clients), page views,
+requests, visitors online in the last five minutes, 4xx/5xx rates, p95 latency
+and bandwidth, plus a request timeline and top hostnames. Scanner probes are
+excluded from the totals and reported separately. Visitor counts read `n/a`
+when the ingress does not see client IPs. Ranges beyond 24 hours and every
+`top` breakdown require the Pro plan.
 
 ## Domains and TLS
 

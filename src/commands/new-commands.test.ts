@@ -223,3 +223,13 @@ test("operational CLI groups are registered", () => {
   for (const name of ["ls", "alert-create", "uptime-create", "check", "rm"])
     assert.ok(find(name, monitoring), `monitoring ${name} should exist`);
 });
+
+test("analytics exposes overview (default) and top", () => {
+  const analytics = find("analytics", buildProgram())!;
+  for (const c of ["overview", "top", "breakdown"])
+    assert.ok(find(c, analytics), `analytics ${c} should exist`);
+});
+
+test("the tui command is registered with its ui alias", () => {
+  assert.ok(find("ui", buildProgram()));
+});
