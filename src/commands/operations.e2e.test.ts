@@ -262,19 +262,19 @@ test("scale sends only the changed fields and reports the diff", async () => {
       "--replicas",
       "3",
       "--memory",
-      "1024",
+      "6144",
     ]);
     assert.deepEqual(writes(seen), [
       {
         method: "PATCH",
         path: "/apps/services/svc_web",
-        body: { replicas: 3, memoryLimit: 1024 },
+        body: { replicas: 3, memoryLimit: 6144 },
       },
     ]);
     assert.match(stdout, /scale\s+2 replicas\s+3 replicas/);
     assert.match(
       stdout,
-      /default memory per replica\s+500m CPU · 1024Mi memory per replica/,
+      /default memory per replica\s+500m CPU · 6144Mi memory per replica/,
     );
     assert.match(
       stdout,

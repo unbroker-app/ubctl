@@ -6,7 +6,7 @@ import type { Service } from "../api/types";
 export const SCALE_LIMITS = {
   replicas: { min: 1, max: 300 },
   cpu: { min: 100, max: 2000 },
-  memory: { min: 128, max: 2048 },
+  memory: { min: 128, max: 6144 },
   targetPercent: { min: 10, max: 95 },
 } as const;
 
