@@ -16,9 +16,18 @@ function find(name: string, of: Command): Command | undefined {
 
 test("top-level product/management groups are registered", () => {
   const program = buildProgram();
-  for (const name of ["beacon", "github", "team", "notifications"]) {
+  for (const name of ["beacon", "github", "team", "notifications", "config"]) {
     assert.ok(find(name, program), `${name} should exist`);
   }
+});
+
+test("config exposes the IaC lifecycle", () => {
+  const config = find("config", buildProgram())!;
+  for (const name of ["init", "pull", "plan", "apply"])
+    assert.ok(find(name, config), `config ${name} should exist`);
+  assert.ok(
+    find("plan", config)!.options.some((option) => option.long === "--force"),
+  );
 });
 
 test("beacon exposes its full lifecycle + settings", () => {

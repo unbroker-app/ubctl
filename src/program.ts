@@ -19,6 +19,7 @@ import { doctorCommand } from "./commands/doctor";
 import { cloudCommands } from "./commands/cloud";
 import { analyticsCommand } from "./commands/analytics";
 import { tuiCommand } from "./commands/tui";
+import { configCommand } from "./commands/config";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -54,6 +55,7 @@ export function buildProgram(): Command {
 
   // Products
   program.addCommand(appsCommand());
+  program.addCommand(configCommand());
   program.addCommand(analyticsCommand());
   program.addCommand(beaconCommand());
   program.addCommand(githubCommand());
