@@ -23,6 +23,7 @@ browser (self-contained, no build needed).
 - [Observability and billing](#observability-and-billing)
 - [Core concepts](#core-concepts)
 - [Walkthrough 1 — deploy an app from GitHub](#walkthrough-1--deploy-an-app-from-github)
+- [Infrastructure as Code](#infrastructure-as-code)
 - [Walkthrough 2 — a managed database](#walkthrough-2--a-managed-database)
 - [Walkthrough 3 — a Beacon realtime project](#walkthrough-3--a-beacon-realtime-project)
 - [Walkthrough 4 — traffic, resources and scale](#walkthrough-4--traffic-resources-and-scale)
@@ -391,6 +392,23 @@ ubctl apps backups run svc_db123
 ubctl apps backups ls svc_db123
 ubctl apps backups restore svc_db123 backup_123 --confirm orders-db
 ```
+
+---
+
+## Infrastructure as Code
+
+Define a complete project environment in `.unbroker/unbroker.ts` with the
+`@unbroker/iac` authoring SDK:
+
+```bash
+ubctl config init
+ubctl config pull prj_123 --force
+ubctl config plan prj_123 --out .unbroker/production.plan.json
+ubctl config apply prj_123 --plan .unbroker/production.plan.json --yes
+```
+
+Plans are immutable and fail if the live environment drifts before apply.
+Destructive changes require `--confirm-destructive` in addition to `--yes`.
 
 ---
 
