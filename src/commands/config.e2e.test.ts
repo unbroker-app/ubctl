@@ -56,6 +56,17 @@ test("config plan and apply use immutable plan API contracts", async () => {
               address: "service.api.env.API_KEY",
               destructive: false,
               deploy: true,
+              effect: "rebuild",
+            },
+          ],
+          releases: [
+            {
+              serviceKey: "api",
+              effect: "rebuild",
+              liveDeploymentId: "dep_live",
+              commitSha: "abc123",
+              imageRef: null,
+              pinned: true,
             },
           ],
         }),
@@ -74,6 +85,17 @@ test("config plan and apply use immutable plan API contracts", async () => {
               address: "service.api.env.API_KEY",
               destructive: false,
               deploy: true,
+              effect: "rebuild",
+            },
+          ],
+          releases: [
+            {
+              serviceKey: "api",
+              effect: "rebuild",
+              liveDeploymentId: "dep_live",
+              commitSha: "abc123",
+              imageRef: null,
+              pinned: true,
             },
           ],
           applied: true,
@@ -157,7 +179,8 @@ test("config plan and apply use immutable plan API contracts", async () => {
       ],
       { cwd: root, env: { ...process.env, UBCTL_TOKEN: "ub_test" } },
     );
-    assert.match(applied.stdout, /service\.api\.env\.API_KEY \(deploy\)/);
+    assert.match(applied.stdout, /service\.api\.env\.API_KEY \(rebuild\)/);
+    assert.match(applied.stdout, /api: rebuild abc123 \(pinned\)/);
     assert.match(applied.stdout, /Queued deployments: api/);
     assert.deepEqual(
       requests.map(({ method, path }) => ({ method, path })),
