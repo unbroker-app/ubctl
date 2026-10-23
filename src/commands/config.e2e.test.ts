@@ -49,8 +49,15 @@ test("config plan and apply use immutable plan API contracts", async () => {
           environmentId: "env_test",
           expiresAt: Date.now() + 60_000,
           destructive: false,
-          summary: { add: 0, change: 0, destroy: 0, replace: 0 },
-          changes: [],
+          summary: { add: 0, change: 1, destroy: 0, replace: 0 },
+          changes: [
+            {
+              action: "change",
+              address: "service.api.env.API_KEY",
+              destructive: false,
+              deploy: true,
+            },
+          ],
         }),
       );
     else
@@ -60,10 +67,19 @@ test("config plan and apply use immutable plan API contracts", async () => {
           environmentId: "env_test",
           expiresAt: Date.now() + 60_000,
           destructive: false,
-          summary: { add: 0, change: 0, destroy: 0, replace: 0 },
-          changes: [],
+          summary: { add: 0, change: 1, destroy: 0, replace: 0 },
+          changes: [
+            {
+              action: "change",
+              address: "service.api.env.API_KEY",
+              destructive: false,
+              deploy: true,
+            },
+          ],
           applied: true,
           etag: "etag_after",
+          deployments: [{ serviceId: "svc_api", slug: "api" }],
+          deploymentSchedulingFailed: false,
         }),
       );
   });
@@ -124,7 +140,7 @@ test("config plan and apply use immutable plan API contracts", async () => {
         error instanceof Error &&
         /JSON apply requires --yes/.test(error.message),
     );
-    await execFileAsync(
+    const applied = await execFileAsync(
       process.execPath,
       [
         "--import",
@@ -138,10 +154,11 @@ test("config plan and apply use immutable plan API contracts", async () => {
         "--plan",
         planFile,
         "--yes",
-        "--json",
       ],
       { cwd: root, env: { ...process.env, UBCTL_TOKEN: "ub_test" } },
     );
+    assert.match(applied.stdout, /service\.api\.env\.API_KEY \(deploy\)/);
+    assert.match(applied.stdout, /Queued deployments: api/);
     assert.deepEqual(
       requests.map(({ method, path }) => ({ method, path })),
       [

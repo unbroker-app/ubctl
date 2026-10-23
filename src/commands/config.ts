@@ -32,6 +32,7 @@ interface PlanChange {
   action: "add" | "change" | "destroy" | "replace";
   address: string;
   destructive: boolean;
+  deploy?: boolean;
   changes?: Record<string, unknown>;
 }
 
@@ -47,6 +48,8 @@ interface PlanResponse {
 interface ApplyResponse extends PlanResponse {
   applied: true;
   etag: string;
+  deployments?: { serviceId: string; slug: string }[];
+  deploymentSchedulingFailed?: boolean;
 }
 
 const query = (environment?: string): string =>
@@ -73,7 +76,7 @@ function printPlan(plan: PlanResponse): void {
   );
   for (const change of plan.changes)
     print(
-      `  ${symbols[change.action]} ${change.address}${change.destructive ? " (destructive)" : ""}`,
+      `  ${symbols[change.action]} ${change.address}${change.destructive ? " (destructive)" : ""}${change.deploy ? " (deploy)" : ""}`,
     );
 }
 
@@ -264,6 +267,14 @@ export function configCommand(): Command {
           if (ctx.json) return printJson(result);
           printPlan(result);
           print(`Applied ${result.planId}; environment state ${result.etag}`);
+          if (result.deployments?.length)
+            print(
+              `Queued deployments: ${result.deployments.map((deployment) => deployment.slug).join(", ")}`,
+            );
+          if (result.deploymentSchedulingFailed)
+            print(
+              "Infrastructure applied, but affected deployments could not be queued; retry them with `ubctl apps deploy`.",
+            );
         },
       ),
   );
