@@ -397,15 +397,27 @@ ubctl apps backups restore svc_db123 backup_123 --confirm orders-db
 
 ## Infrastructure as Code
 
-Define a complete project environment in `.unbroker/unbroker.ts` with the
-`@unbroker/iac` authoring SDK:
+Define a complete project environment with the TypeScript, Go or Python SDK:
 
 ```bash
-ubctl config init
+# TypeScript (default)
+ubctl config init --lang typescript
+
+# Or an external evaluator using the same JSON contract
+ubctl config init --lang go
+ubctl config init --lang python
+
 ubctl config pull prj_123 --force
 ubctl config plan prj_123 --out .unbroker/production.plan.json
 ubctl config apply prj_123 --plan .unbroker/production.plan.json --yes
 ```
+
+`ubctl` evaluates TypeScript in-process. Python and Go receive environment
+context as JSON on stdin and must emit desired-state JSON on stdout. The
+matching public SDK handles this protocol; diagnostics remain on stderr.
+
+Keep exactly one of `.unbroker/unbroker.ts`, `.py` or `.go`. Use `pull --lang`
+to render existing state in the language you prefer.
 
 Plans are immutable and fail if the live environment drifts before apply.
 Destructive changes require `--confirm-destructive` in addition to `--yes`.
