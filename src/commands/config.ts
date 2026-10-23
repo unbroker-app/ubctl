@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { authed, withJson } from "./helpers";
@@ -7,6 +8,9 @@ import { CliError } from "../util/errors";
 import {
   evaluateConfig,
   findConfigPath,
+  configLanguage,
+  goModule,
+  languageForFile,
   newConfigPath,
   readPlanId,
   renderConfig,
@@ -14,6 +18,7 @@ import {
   writeConfig,
   type DesiredState,
   type EvaluationContext,
+  type IacLanguage,
 } from "../config/iac";
 
 interface StateResponse {
@@ -92,15 +97,26 @@ export function configCommand(): Command {
 
   config
     .command("init")
-    .description("Create .unbroker/unbroker.ts")
+    .description("Create an IaC authoring file")
+    .option("--lang <language>", "typescript, python or go", "typescript")
     .option("--file <path>", "configuration file path")
     .option("--force", "replace an existing file")
-    .action((opts: { file?: string; force?: boolean }) => {
-      const file = opts.file ? resolve(opts.file) : newConfigPath();
-      writeConfig(file, starterConfig, opts.force);
+    .action((opts: { lang: string; file?: string; force?: boolean }) => {
+      const language = configLanguage(opts.lang);
+      const file = opts.file
+        ? resolve(opts.file)
+        : newConfigPath(process.cwd(), language);
+      if (opts.file && languageForFile(file) !== language)
+        throw new CliError("--lang must match the --file extension");
+      const goMod =
+        language === "go" ? join(dirname(file), "go.mod") : undefined;
+      writeConfig(file, starterConfig(language), opts.force);
+      // A caller may intentionally put the authoring file in an existing Go
+      // module. --force only replaces the config, never module metadata.
+      if (goMod && !existsSync(goMod)) writeConfig(goMod, goModule);
       print(`Created ${file}`);
       print(
-        "Install @unbroker/iac, edit the source and run `ubctl config plan <projectId>`.",
+        "Install the matching SDK, edit the source and run `ubctl config plan <projectId>`.",
       );
     });
 
@@ -109,20 +125,41 @@ export function configCommand(): Command {
       .command("pull <projectId>")
       .description("Write the current environment as TypeScript configuration")
       .option("--environment <id>", "environment id")
+      .option("--lang <language>", "typescript, python or go", "typescript")
       .option("--file <path>", "destination file path")
       .option("--force", "replace an existing file")
       .action(
         async (
           projectId: string,
-          opts: { environment?: string; file?: string; force?: boolean },
+          opts: {
+            environment?: string;
+            lang: string;
+            file?: string;
+            force?: boolean;
+          },
           cmd: Command,
         ) => {
           const { ctx, client } = authed(cmd);
           const state = await client.get<StateResponse>(
             `/apps/projects/${projectId}/iac/state${query(opts.environment)}`,
           );
-          const file = opts.file ? resolve(opts.file) : newConfigPath();
-          writeConfig(file, renderConfig(state.state), opts.force);
+          const language: IacLanguage = opts.file
+            ? languageForFile(opts.file)
+            : configLanguage(opts.lang);
+          if (
+            opts.file &&
+            opts.lang !== "typescript" &&
+            configLanguage(opts.lang) !== language
+          )
+            throw new CliError("--lang must match the --file extension");
+          const file = opts.file
+            ? resolve(opts.file)
+            : newConfigPath(process.cwd(), language);
+          writeConfig(file, renderConfig(state.state, language), opts.force);
+          if (language === "go") {
+            const goMod = join(dirname(file), "go.mod");
+            if (!existsSync(goMod)) writeConfig(goMod, goModule);
+          }
           const result = {
             file,
             projectId,
