@@ -17,6 +17,9 @@ inputs:
   config-file:
     description: Explicit authoring file path
     required: false
+  partial:
+    description: Named multi-repo ownership scope
+    required: false
   plan-id:
     description: Explicit saved plan id for apply; otherwise read the PR comment
     required: false
@@ -57,6 +60,7 @@ runs:
         INPUT_PROJECT_ID: ${{ inputs.project-id }}
         INPUT_ENVIRONMENT_ID: ${{ inputs.environment-id }}
         INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_PARTIAL: ${{ inputs.partial }}
         INPUT_PLAN_ID: ${{ inputs.plan-id }}
         INPUT_CONFIRM_DESTRUCTIVE: ${{ inputs.confirm-destructive }}
         GITHUB_ACTION_TOKEN: ${{ inputs.github-token }}

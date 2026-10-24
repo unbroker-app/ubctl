@@ -168,8 +168,10 @@ async function main(): Promise<void> {
     const args = ["config", "plan", projectId, "--json"];
     const environment = process.env.INPUT_ENVIRONMENT_ID?.trim();
     const file = process.env.INPUT_CONFIG_FILE?.trim();
+    const partial = process.env.INPUT_PARTIAL?.trim();
     if (environment) args.push("--environment", environment);
     if (file) args.push("--file", file);
+    if (partial) args.push("--partial", partial);
     const raw = await runUbctl(args);
     const plan = JSON.parse(raw) as PlanResult;
     const payload = event();
