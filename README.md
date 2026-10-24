@@ -227,13 +227,13 @@ stdout are terminals, `--json` is off, `CI` is unset and ubctl is the
 terminal's foreground job (not `cmd &`). Otherwise a missing argument fails
 exactly as before.
 
-| Command | Interactive behavior |
-| ------- | -------------------- |
-| `ubctl apps deploy` | With `--wait`, or when you pick the service from the list, follows the deployment live: the build log streams above a footer with stages and elapsed time. `q` stops following (with `--wait` that exits non-zero), `ctrl+c` exits 130; the deployment keeps running either way. `ubctl apps deploy <id>` alone still queues and returns. |
-| `ubctl apps services create` | With missing flags, asks for project, repository (connected GitHub repos first, with their branches), name and framework, then offers to deploy. |
-| `ubctl apps scale <id>` | With no flags, opens the dashboard's scale editor inline; `shift+d` saves and follows the deploy. |
-| `ubctl auth switch` | Pick a saved context from a list. |
-| Omitted ids | `apps deploy`, `apps deployments`, `apps scale`, `apps services get/logs/metrics/resources/enable/disable`, `db get/metrics/health/resize` let you pick from a list. |
+| Command                      | Interactive behavior                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ubctl apps deploy`          | With `--wait`, or when you pick the service from the list, follows the deployment live: the build log streams above a footer with stages and elapsed time. `q` stops following (with `--wait` that exits non-zero), `ctrl+c` exits 130; the deployment keeps running either way. `ubctl apps deploy <id>` alone still queues and returns. |
+| `ubctl apps services create` | With missing flags, asks for project, repository (connected GitHub repos first, with their branches), name and framework, then offers to deploy.                                                                                                                                                                                          |
+| `ubctl apps scale <id>`      | With no flags, opens the dashboard's scale editor inline; `shift+d` saves and follows the deploy.                                                                                                                                                                                                                                         |
+| `ubctl auth switch`          | Pick a saved context from a list.                                                                                                                                                                                                                                                                                                         |
+| Omitted ids                  | `apps deploy`, `apps deployments`, `apps scale`, `apps services get/logs/metrics/resources/enable/disable`, `db get/metrics/health/resize` let you pick from a list.                                                                                                                                                                      |
 
 Lists filter as you type; `↑`/`↓` move, `enter` selects and `esc` cancels
 (exit code 130). Destructive commands such as `rm` always require an explicit
@@ -263,14 +263,14 @@ of truth.
 
 ## Core concepts
 
-| Concept          | What it is                                                                |
-| ---------------- | ------------------------------------------------------------------------- |
-| **Organization** | The tenant everything belongs to. You have a personal one plus any teams. |
-| **Project**      | A group of services that share project-wide env vars.                     |
-| **Service**      | One deployable unit — a GitHub repo (built for you) or a prebuilt image.  |
-| **Deployment**   | One build+release of a service. You can follow it live and roll back.     |
+| Concept          | What it is                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| **Organization** | The tenant everything belongs to. You have a personal one plus any teams.              |
+| **Project**      | A group of services that share project-wide env vars.                                  |
+| **Service**      | One deployable unit — a GitHub repo (built for you) or a prebuilt image.               |
+| **Deployment**   | One build+release of a service. You can follow it live and roll back.                  |
 | **Database**     | A managed cluster (`ubctl db`) or a self-hosted Apps service (`ubctl apps databases`). |
-| **Beacon**       | A realtime pub/sub project — channels you publish to and subscribe from.  |
+| **Beacon**       | A realtime pub/sub project — channels you publish to and subscribe from.               |
 
 Most resources are scoped to the **active organization**. Override per command
 with `--org <id>` (see [`ubctl orgs`](#account--organizations) for the ids).
@@ -421,6 +421,62 @@ to render existing state in the language you prefer.
 
 Plans are immutable and fail if the live environment drifts before apply.
 Destructive changes require `--confirm-destructive` in addition to `--yes`.
+
+### GitHub pull request workflow
+
+The repository also exposes `unbroker-app/ubctl@main` as a GitHub Action. It
+updates one plan comment on every PR revision and applies only the plan whose
+recorded head SHA matches the merged PR. Store an environment-scoped project
+token as `UBCTL_TOKEN`, then add:
+
+```yaml
+name: Unbroker IaC
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths: [".unbroker/**", "package.json", "bun.lock"]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  plan:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.3
+      - run: bun install --frozen-lockfile
+      - uses: unbroker-app/ubctl@main
+        with:
+          mode: plan
+          unbroker-token: ${{ secrets.UBCTL_TOKEN }}
+          github-token: ${{ github.token }}
+          project-id: prj_123
+          environment-id: env_123
+
+  apply:
+    if: github.event.action == 'closed' && github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: unbroker-app/ubctl@main
+        with:
+          mode: apply
+          unbroker-token: ${{ secrets.UBCTL_TOKEN }}
+          github-token: ${{ github.token }}
+          project-id: prj_123
+          confirm-destructive: true
+```
+
+Fork plans are skipped so repository secrets are never exposed. The apply job
+trusts only the `github-actions[bot]` comment matching the PR's exact head SHA;
+re-planning after a new commit invalidates the previous approval.
 
 ---
 

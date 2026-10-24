@@ -1,0 +1,67 @@
+name: Unbroker Infrastructure as Code
+description: Plan IaC on pull requests and apply the reviewed immutable plan on merge
+
+inputs:
+  mode:
+    description: plan or apply
+    required: true
+  unbroker-token:
+    description: Environment-scoped Unbroker token
+    required: true
+  project-id:
+    description: Unbroker project id
+    required: true
+  environment-id:
+    description: Unbroker environment id
+    required: false
+  config-file:
+    description: Explicit authoring file path
+    required: false
+  plan-id:
+    description: Explicit saved plan id for apply; otherwise read the PR comment
+    required: false
+  confirm-destructive:
+    description: Allow a reviewed destructive plan during apply
+    required: false
+    default: "false"
+  github-token:
+    description: GitHub token used to create or read the PR plan comment
+    required: true
+
+outputs:
+  plan-id:
+    description: Immutable Unbroker plan id
+    value: ${{ steps.run.outputs.plan-id }}
+  result:
+    description: Raw JSON plan or apply response
+    value: ${{ steps.run.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+      with:
+        bun-version: 1.3.3
+
+    - name: Install ubctl action dependencies
+      shell: bash
+      run: bun install --frozen-lockfile --cwd "$GITHUB_ACTION_PATH"
+
+    - name: Plan or apply Unbroker configuration
+      id: run
+      shell: bash
+      env:
+        UBCTL_TOKEN: ${{ inputs.unbroker-token }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_PROJECT_ID: ${{ inputs.project-id }}
+        INPUT_ENVIRONMENT_ID: ${{ inputs.environment-id }}
+        INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_PLAN_ID: ${{ inputs.plan-id }}
+        INPUT_CONFIRM_DESTRUCTIVE: ${{ inputs.confirm-destructive }}
+        GITHUB_ACTION_TOKEN: ${{ inputs.github-token }}
+      run: bun "$GITHUB_ACTION_PATH/src/github-action.ts"
+
+branding:
+  icon: cloud
+  color: purple
