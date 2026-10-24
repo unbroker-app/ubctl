@@ -33,6 +33,7 @@ interface PlanChange {
   address: string;
   destructive: boolean;
   deploy?: boolean;
+  effect?: "redeploy" | "rebuild";
   changes?: Record<string, unknown>;
 }
 
@@ -43,6 +44,14 @@ interface PlanResponse {
   destructive: boolean;
   summary: { add: number; change: number; destroy: number; replace: number };
   changes: PlanChange[];
+  releases?: {
+    serviceKey: string;
+    effect: "redeploy" | "rebuild";
+    liveDeploymentId: string | null;
+    commitSha: string | null;
+    imageRef: string | null;
+    pinned: boolean;
+  }[];
 }
 
 interface ApplyResponse extends PlanResponse {
@@ -76,8 +85,15 @@ function printPlan(plan: PlanResponse): void {
   );
   for (const change of plan.changes)
     print(
-      `  ${symbols[change.action]} ${change.address}${change.destructive ? " (destructive)" : ""}${change.deploy ? " (deploy)" : ""}`,
+      `  ${symbols[change.action]} ${change.address}${change.destructive ? " (destructive)" : ""}${change.effect ? ` (${change.effect})` : change.deploy ? " (deploy)" : ""}`,
     );
+  for (const release of plan.releases ?? []) {
+    const revision =
+      release.commitSha ?? release.imageRef ?? "configured source";
+    print(
+      `  → ${release.serviceKey}: ${release.effect} ${revision}${release.pinned ? " (pinned)" : " (resolved at deploy)"}`,
+    );
+  }
 }
 
 async function confirmApply(): Promise<void> {
