@@ -42,6 +42,7 @@ interface PlanResponse {
   environmentId: string;
   expiresAt: number;
   destructive: boolean;
+  partial?: string | null;
   summary: { add: number; change: number; destroy: number; replace: number };
   changes: PlanChange[];
   releases?: {
@@ -199,6 +200,7 @@ export function configCommand(): Command {
       .description("Preview and save changes without applying them")
       .option("--environment <id>", "environment id")
       .option("--file <path>", "configuration file path")
+      .option("--partial <name>", "named multi-repo ownership scope")
       .option("--out <path>", "write the saved plan metadata as JSON")
       .option("--force", "replace an existing plan artifact")
       .option("--detailed-exit-code", "exit 2 when the plan contains changes")
@@ -208,6 +210,7 @@ export function configCommand(): Command {
           opts: {
             environment?: string;
             file?: string;
+            partial?: string;
             out?: string;
             force?: boolean;
             detailedExitCode?: boolean;
@@ -225,7 +228,11 @@ export function configCommand(): Command {
           );
           const plan = await client.post<PlanResponse>(
             `/apps/projects/${projectId}/iac/plan`,
-            { environmentId: state.environmentId, desiredState },
+            {
+              environmentId: state.environmentId,
+              partial: opts.partial,
+              desiredState,
+            },
           );
           if (opts.out) {
             const out = resolve(opts.out);

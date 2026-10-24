@@ -478,6 +478,38 @@ Fork plans are skipped so repository secrets are never exposed. The apply job
 trusts only the `github-actions[bot]` comment matching the PR's exact head SHA;
 re-planning after a new commit invalidates the previous approval.
 
+### Multi-repository projects
+
+Give each repository a stable partial name. It then owns only the services it
+declares; omitting a service can delete it only when the same partial owns it.
+Another partial cannot change or claim that service.
+
+```bash
+# API repository
+ubctl config plan prj_123 --partial api --out .unbroker/api.plan.json
+
+# Web repository
+ubctl config plan prj_123 --partial web --out .unbroker/web.plan.json
+```
+
+Pass the same name to the GitHub Action:
+
+```yaml
+- uses: unbroker-app/ubctl@main
+  with:
+    mode: plan
+    partial: api
+    project-id: prj_123
+    unbroker-token: ${{ secrets.UBCTL_TOKEN }}
+    github-token: ${{ github.token }}
+```
+
+The first successful no-op apply can adopt an existing unowned service. Named
+partials cannot rename the shared project or manage project-level variables;
+keep shared variables in a whole-project configuration before enabling partials,
+or declare variables directly on the owned services. Once an environment has
+named ownership, whole-project apply is blocked to prevent accidental deletion.
+
 ---
 
 ## Walkthrough 2 — a managed database
