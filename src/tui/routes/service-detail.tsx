@@ -156,7 +156,7 @@ export function ServiceDetail(props: { serviceId: string; tab?: ServiceTab }) {
                 {" "}
                 {s().status}
                 {s().needsRedeploy ? " · changes pending deploy" : ""} ·{" "}
-                {s().url}
+                {s().private ? `private (internal) · ${s().host}` : s().url}
               </span>
             </text>
           )}
@@ -226,7 +226,12 @@ function OverviewTab(props: { service: Service }) {
               : (s().imageRef ?? "-"),
           },
           { label: "framework", value: s().framework ?? "-" },
-          { label: "url", value: s().url },
+          {
+            label: "network",
+            value: s().private ? "private (internal)" : "public",
+          },
+          { label: "host", value: s().host },
+          { label: "url", value: s().private ? "-" : s().url },
           { label: "domains", value: s().domains.join(", ") || "-" },
           { label: "access", value: s().accessMode ?? "public" },
           { label: "auto deploy", value: s().autoDeploy ? "on push" : "off" },

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { testRender } from "@opentui/solid";
 import { App } from "./app";
+import type { ServicesResponse } from "../api/types";
 import {
   apiError,
   fixtureSession,
@@ -140,6 +141,29 @@ test("service detail shows live usage against limits", async () => {
   expect(screen).toContain("autoscale 2-3 @ 70% CPU");
   expect(screen).toContain("storefront-7f9c-abcde");
   expect(screen).toContain("180m / 500m");
+});
+
+test("private services hide calculated URLs in the list and detail views", async () => {
+  const { services } =
+    await fixtureSession().client.get<ServicesResponse>("/apps/services");
+  const service = {
+    ...services.find((s) => s.id === "svc_web")!,
+    private: true,
+    routed: false,
+    host: "storefront.ub-apps.svc.cluster.local",
+    url: "https://private-calculated.example.test",
+  };
+  await mount({
+    "/apps/services": { services: [service] },
+    "/apps/services/svc_web": { service },
+  });
+  await press("2");
+  expect(frame()).toContain("private");
+  expect(frame()).not.toContain("https://private");
+  await press("enter");
+  expect(frame()).toContain("private (internal)");
+  expect(frame()).toContain(service.host);
+  expect(frame()).not.toContain("private-calculated.example.test");
 });
 
 test("ctrl+c closes an open dialog instead of quitting", async () => {

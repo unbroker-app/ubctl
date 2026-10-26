@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
-import { createJiti } from "jiti";
+import { createJiti } from "jiti/static";
 import { CliError } from "../util/errors";
 
 export interface PreserveValue {
