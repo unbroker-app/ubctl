@@ -49,7 +49,7 @@ const routes: Record<string, (body: unknown) => [number, unknown]> = {
         ...service,
         id: "svc_private",
         private: true,
-        url: null,
+        url: service.url,
         routed: false,
         host: "web.internal",
       },
@@ -67,7 +67,7 @@ const routes: Record<string, (body: unknown) => [number, unknown]> = {
         ...service,
         ...(body as object),
         private: (body as { private?: boolean }).private ?? false,
-        url: (body as { private?: boolean }).private ? null : service.url,
+        url: service.url,
         host: "web.internal",
       },
     },
@@ -296,7 +296,7 @@ test("private service inspection shows its internal host without a fake public U
       "--json",
     ]);
     assert.equal(JSON.parse(json.stdout).private, true);
-    assert.equal(JSON.parse(json.stdout).url, null);
+    assert.equal(JSON.parse(json.stdout).url, service.url);
   });
 });
 
@@ -321,7 +321,7 @@ test("service create preserves omitted, private and public exposure", async () =
       assert.equal(Object.hasOwn(body, "private"), flag !== undefined);
       if (flag === "--private") {
         assert.match(stdout, /Internal host: web.internal/);
-        assert.doesNotMatch(stdout, /URL: null/);
+        assert.doesNotMatch(stdout, /URL:/);
       }
     });
   }
