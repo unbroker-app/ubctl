@@ -57,6 +57,7 @@ interface CreateOpts {
   githubInstallation?: number;
   volumePath?: string;
   volumeSize?: number;
+  private?: boolean;
 }
 
 interface UpdateOpts {
@@ -69,6 +70,7 @@ interface UpdateOpts {
   imageRef?: string;
   autoDeploy?: string;
   volumeSize?: number;
+  private?: boolean;
 }
 
 export function servicesCommand(): Command {
@@ -91,6 +93,7 @@ export function servicesCommand(): Command {
             { key: "framework", header: "framework" },
             { key: "branch", header: "branch" },
             { key: "status", header: "status" },
+            { key: "private", header: "private" },
             { key: "url", header: "url" },
           ],
         );
@@ -142,9 +145,12 @@ export function servicesCommand(): Command {
           print(
             `status:    ${service.status}${service.needsRedeploy ? " (needs redeploy)" : ""}`,
           );
-          print(
-            `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
-          );
+          print(`private:   ${service.private ?? false}`);
+          print(`host:      ${service.host}`);
+          if (service.url)
+            print(
+              `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
+            );
           if (service.domains.length)
             print(`domains:   ${service.domains.join(", ")}`);
           print(`created:   ${age(service.createdAt)}`);
@@ -171,6 +177,8 @@ export function servicesCommand(): Command {
       .option("--branch <branch>", "git branch", "main")
       .option("--build <cmd>", "build command override")
       .option("--start <cmd>", "start command override")
+      .option("--private", "disable public routing (internal network only)")
+      .option("--no-private", "enable public routing")
       .addOption(
         new Option(
           "--port <port>",
@@ -242,6 +250,7 @@ export function servicesCommand(): Command {
           if (opts.build) body.buildCommand = opts.build;
           if (opts.start) body.startCommand = opts.start;
           if (opts.port !== undefined) body.port = opts.port;
+          if (opts.private !== undefined) body.private = opts.private;
           if (opts.outputDir) body.outputDir = opts.outputDir;
           if (opts.rootDir) body.rootDir = opts.rootDir;
           if (
@@ -264,7 +273,9 @@ export function servicesCommand(): Command {
           );
           if (ctx.json) return printJson(service);
           print(`Created service ${service.name} (${service.id})`);
-          print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
+          if (service.url)
+            print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
+          else print(`Internal host: ${service.host}`);
           // Only offer when the wizard ran: a fully specified command (a
           // script, an agent in a PTY) must finish without a question.
           if (answers && (await agree("Deploy it now?", true)))
@@ -295,6 +306,8 @@ export function servicesCommand(): Command {
       .option("--build <cmd>", "build command override")
       .option("--start <cmd>", "start command override")
       .option("--image-ref <ref>", "image reference (image services)")
+      .option("--private", "disable public routing (internal network only)")
+      .option("--no-private", "enable public routing")
       .addOption(
         new Option(
           "--volume-size <gb>",
@@ -314,6 +327,7 @@ export function servicesCommand(): Command {
         if (opts.branch) body.branch = opts.branch;
         if (opts.framework) body.framework = opts.framework;
         if (opts.port !== undefined) body.port = opts.port;
+        if (opts.private !== undefined) body.private = opts.private;
         if (opts.build) body.buildCommand = opts.build;
         if (opts.start) body.startCommand = opts.start;
         if (opts.imageRef) body.imageRef = opts.imageRef;
