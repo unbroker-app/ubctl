@@ -42,10 +42,35 @@ const service = {
 };
 
 const routes: Record<string, (body: unknown) => [number, unknown]> = {
+  "GET /apps/services/svc_private": () => [
+    200,
+    {
+      service: {
+        ...service,
+        id: "svc_private",
+        private: true,
+        url: null,
+        routed: false,
+        host: "web.internal",
+      },
+    },
+  ],
   "GET /apps/services/svc_web": () => [200, { service }],
   "PATCH /apps/services/svc_web": (body) => [
     200,
     { service: { ...service, ...(body as object), needsRedeploy: true } },
+  ],
+  "POST /apps/projects/prj_1/services": (body) => [
+    201,
+    {
+      service: {
+        ...service,
+        ...(body as object),
+        private: (body as { private?: boolean }).private ?? false,
+        url: (body as { private?: boolean }).private ? null : service.url,
+        host: "web.internal",
+      },
+    },
   ],
   "POST /apps/services/svc_web/deployments": () => [
     202,
@@ -251,6 +276,69 @@ async function invoke(apiUrl: string, args: string[]) {
 }
 
 const writes = (seen: Seen[]) => seen.filter((r) => r.method !== "GET");
+
+test("private service inspection shows its internal host without a fake public URL", async () => {
+  await withApi(async (apiUrl) => {
+    const { stdout } = await invoke(apiUrl, [
+      "apps",
+      "services",
+      "get",
+      "svc_private",
+    ]);
+    assert.match(stdout, /private:\s+true/);
+    assert.match(stdout, /host:\s+web.internal/);
+    assert.doesNotMatch(stdout, /url:|beta/);
+    const json = await invoke(apiUrl, [
+      "apps",
+      "services",
+      "get",
+      "svc_private",
+      "--json",
+    ]);
+    assert.equal(JSON.parse(json.stdout).private, true);
+    assert.equal(JSON.parse(json.stdout).url, null);
+  });
+});
+
+test("service create preserves omitted, private and public exposure", async () => {
+  for (const flag of [undefined, "--private", "--no-private"]) {
+    await withApi(async (apiUrl, seen) => {
+      const { stdout } = await invoke(apiUrl, [
+        "apps",
+        "services",
+        "create",
+        "prj_1",
+        "--name",
+        "web",
+        "--repo",
+        "https://github.com/acme/web",
+        "--framework",
+        "node",
+        ...(flag ? [flag] : []),
+      ]);
+      const body = writes(seen)[0]!.body as Record<string, unknown>;
+      assert.equal(body.private, flag ? flag === "--private" : undefined);
+      assert.equal(Object.hasOwn(body, "private"), flag !== undefined);
+      if (flag === "--private") {
+        assert.match(stdout, /Internal host: web.internal/);
+        assert.doesNotMatch(stdout, /URL: null/);
+      }
+    });
+  }
+});
+
+test("service update changes exposure without adding defaults to unrelated updates", async () => {
+  for (const [args, expected] of [
+    [["--private"], { private: true }],
+    [["--no-private"], { private: false }],
+    [["--name", "renamed"], { name: "renamed" }],
+  ] as const) {
+    await withApi(async (apiUrl, seen) => {
+      await invoke(apiUrl, ["apps", "services", "update", "svc_web", ...args]);
+      assert.deepEqual(writes(seen)[0]!.body, expected);
+    });
+  }
+});
 
 test("scale sends only the changed fields and reports the diff", async () => {
   await withApi(async (apiUrl, seen) => {

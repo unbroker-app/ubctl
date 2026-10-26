@@ -24,6 +24,7 @@ import {
   starterConfig,
   writeConfig,
   type EvaluationContext,
+  type DesiredState,
 } from "./iac";
 
 const context: EvaluationContext = {
@@ -35,6 +36,59 @@ const context: EvaluationContext = {
   environmentName: "production",
   isEnvironment: (name) => name === "production",
 };
+
+test("config pull renders explicit private and public settings in every language", () => {
+  for (const privateValue of [undefined, true, false]) {
+    const state: DesiredState = {
+      version: 1,
+      project: {
+        name: "acme",
+        env: {},
+        services: [
+          {
+            key: "api",
+            name: "api",
+            source: {
+              type: "image",
+              ref: "nginx:alpine",
+              public: privateValue === false,
+            },
+            ...(privateValue !== undefined ? { private: privateValue } : {}),
+            build: null,
+            preDeploy: null,
+            start: null,
+            outputDir: null,
+            port: 3000,
+            healthcheck: null,
+            replicas: 1,
+            cpuLimit: null,
+            memoryLimit: null,
+            autoDeploy: true,
+            waitForCi: false,
+            prPreviews: false,
+            volume: null,
+            env: {},
+            domains: [],
+          },
+        ],
+      },
+    };
+    for (const language of ["typescript", "python", "go"] as const) {
+      const rendered = renderConfig(state, language);
+      if (privateValue === undefined)
+        assert.doesNotMatch(rendered, /private:|private=|Private:/);
+      else {
+        const expected =
+          language === "typescript"
+            ? `private: ${privateValue}`
+            : language === "python"
+              ? `private=${privateValue ? "True" : "False"}`
+              : `Private: iac.Bool(${privateValue})`;
+        assert.ok(rendered.includes(expected), rendered);
+      }
+    }
+  }
+});
 
 test("findConfigPath walks parents and explicit paths fail clearly", () => {
   const root = mkdtempSync(join(tmpdir(), "ubctl-iac-"));
@@ -190,7 +244,7 @@ test("renderConfig and starters support all authoring languages", () => {
   assert.match(starterConfig("typescript"), /defineUnbroker/);
   assert.match(starterConfig("python"), /define_unbroker/);
   assert.match(starterConfig("go"), /DefineUnbroker/);
-  assert.match(goModule, /github\.com\/unbroker-app\/iac v0\.2\.0/);
+  assert.match(goModule, /github\.com\/unbroker-app\/iac v0\.3\.0/);
   assert.match(newConfigPath("/tmp/project", "python"), /unbroker\.py$/);
 });
 

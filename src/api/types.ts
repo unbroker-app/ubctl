@@ -69,6 +69,8 @@ export interface Service {
   serviceType?: "repo" | "image" | "upload";
   imageRef?: string | null;
   host: string;
+  /** Private services have no public URL; host is the internal DNS name. */
+  private?: boolean;
   volumePath?: string | null;
   volumeSizeGb?: number | null;
   port: number;
@@ -76,7 +78,7 @@ export interface Service {
   needsRedeploy: boolean;
   autoDeploy: boolean;
   liveDeploymentId: string | null;
-  url: string;
+  url: string | null;
   routed: boolean;
   domains: string[];
   createdAt: number;

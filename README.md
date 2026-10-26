@@ -294,6 +294,11 @@ ubctl apps services create prj_123 \
   --branch main
 # → Created service web (svc_456). URL: https://web-store.unbroker.cloud
 
+# Internal-only service? Add --private to create, or change routing in place:
+# ubctl apps services update svc_456 --private
+# ubctl apps services update svc_456 --no-private  # enable public routing again
+# Private services have an internal host instead of a public URL.
+
 # (Private repo? connect it in the dashboard, then:
 #  ubctl github installations ls   → grab the id
 #  ubctl apps services create ... --github-installation 12345)
@@ -701,7 +706,7 @@ ubctl apps projects ls | get <id> | create --name <name> | rename <id> --name <n
 ubctl apps projects deploy-all <id> | manifest <id> [--values] | import --file <path> [--name <n>] | duplicate <id> --name <n>
 ubctl apps projects env ls <projectId> | set <projectId> <KEY> <VALUE> | rm <projectId> <KEY>
 ubctl apps services ls | get <id> | create <projectId> --name --repo --framework [--branch --port --build --start --output-dir --root-dir --github-installation --volume-path --volume-size]
-ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --volume-size --auto-deploy true|false]
+ubctl apps services update <id> [--name --branch --framework --port --build --start --image-ref --volume-size --auto-deploy true|false] [--private|--no-private]
 ubctl apps services security <id> --mode public|password|organization [--password <pw>]
 ubctl apps services rm <id> | logs <id> [--since <duration>] | metrics <id> [--since <duration>]
 ubctl apps services resources <id> [--range 15m|1h|6h|24h|7d|30d] | apps resources [--project <id>]

@@ -19,6 +19,7 @@ export type VariableValue = string | PreserveValue;
 export interface DesiredService {
   key: string;
   name: string;
+  private?: boolean;
   source:
     | {
         type: "repository";
@@ -362,6 +363,9 @@ function renderTypeScriptConfig(state: DesiredState): string {
     const fields = [
       `name: ${js(serviceSpec.name)}`,
       `source: ${source}`,
+      serviceSpec.private !== undefined
+        ? `private: ${serviceSpec.private}`
+        : null,
       serviceSpec.build != null ? `build: ${js(serviceSpec.build)}` : null,
       serviceSpec.preDeploy != null
         ? `preDeploy: ${js(serviceSpec.preDeploy)}`
@@ -446,6 +450,9 @@ function renderPythonConfig(state: DesiredState): string {
     const fields = [
       `name=${js(spec.name)}`,
       `source=${source}`,
+      spec.private !== undefined
+        ? `private=${spec.private ? "True" : "False"}`
+        : null,
       spec.build != null ? `build=${js(spec.build)}` : null,
       spec.preDeploy != null ? `pre_deploy=${js(spec.preDeploy)}` : null,
       spec.start != null ? `start=${js(spec.start)}` : null,
@@ -514,6 +521,7 @@ function renderGoConfig(state: DesiredState): string {
     const fields = [
       `Name: ${js(spec.name)}`,
       `Source: ${source}`,
+      spec.private !== undefined ? `Private: iac.Bool(${spec.private})` : null,
       spec.build != null ? `Build: ${js(spec.build)}` : null,
       spec.preDeploy != null ? `PreDeploy: ${js(spec.preDeploy)}` : null,
       spec.start != null ? `Start: ${js(spec.start)}` : null,
@@ -621,5 +629,5 @@ export const goModule = `module unbroker-iac-config
 
 go 1.22
 
-require github.com/unbroker-app/iac v0.2.0
+require github.com/unbroker-app/iac v0.3.0
 `;
