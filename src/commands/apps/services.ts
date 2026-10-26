@@ -86,7 +86,11 @@ export function servicesCommand(): Command {
           await client.get<ServicesResponse>("/apps/services");
         if (ctx.json) return printJson(rows);
         printTable(
-          rows.map((s) => ({ ...s, created: age(s.createdAt) })),
+          rows.map((s) => ({
+            ...s,
+            url: s.private ? null : s.url,
+            created: age(s.createdAt),
+          })),
           [
             { key: "id", header: "id" },
             { key: "name", header: "name" },
@@ -147,7 +151,7 @@ export function servicesCommand(): Command {
           );
           print(`private:   ${service.private ?? false}`);
           print(`host:      ${service.host}`);
-          if (service.url)
+          if (!service.private && service.url)
             print(
               `url:       ${service.url}${service.routed ? "" : " (beta, not routed)"}`,
             );
@@ -273,7 +277,7 @@ export function servicesCommand(): Command {
           );
           if (ctx.json) return printJson(service);
           print(`Created service ${service.name} (${service.id})`);
-          if (service.url)
+          if (!service.private && service.url)
             print(`URL: ${service.url}${service.routed ? "" : " (beta)"}`);
           else print(`Internal host: ${service.host}`);
           // Only offer when the wizard ran: a fully specified command (a
