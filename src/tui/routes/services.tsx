@@ -100,7 +100,8 @@ export function Services() {
               {
                 header: "url",
                 grow: true,
-                value: (s) => s.url ?? "-",
+                value: (s) =>
+                  s.private ? "private" : (s.url ?? "-"),
               },
               { header: "created", width: 8, value: (s) => age(s.createdAt) },
             ]}
