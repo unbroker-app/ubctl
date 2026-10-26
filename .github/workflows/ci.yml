@@ -32,3 +32,11 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      - name: Compile standalone binary
+        run: bun run build:binary
+
+      - name: Test compiled IaC evaluator
+        run: node --import tsx --test src/commands/config.e2e.test.ts
+        env:
+          UBCTL_TEST_BINARY: ${{ github.workspace }}/out/ubctl

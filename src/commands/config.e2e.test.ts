@@ -17,6 +17,9 @@ import { test } from "node:test";
 const execFileAsync = promisify(execFile);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const tsxImport = import.meta.resolve("tsx");
+const [cliExecutable, ...cliArgs] = process.env.UBCTL_TEST_BINARY
+  ? [resolve(process.env.UBCTL_TEST_BINARY)]
+  : [process.execPath, "--import", tsxImport, join(repoRoot, "src/index.ts")];
 
 test("config plan and apply use immutable plan API contracts", async () => {
   const requests: { method: string; path: string; body: unknown }[] = [];
@@ -114,17 +117,35 @@ test("config plan and apply use immutable plan API contracts", async () => {
   const root = mkdtempSync(join(tmpdir(), "ubctl-iac-e2e-"));
   try {
     mkdirSync(join(root, ".unbroker"));
+    const dependency = join(root, "node_modules", "iac-fixture");
+    mkdirSync(dependency, { recursive: true });
+    writeFileSync(
+      join(dependency, "package.json"),
+      JSON.stringify({
+        name: "iac-fixture",
+        type: "module",
+        exports: "./index.ts",
+      }),
+    );
+    writeFileSync(
+      join(dependency, "index.ts"),
+      `export const privateService = (key: string) => ({ key, private: true });\n`,
+    );
+    writeFileSync(
+      join(root, ".unbroker", "settings.ts"),
+      `export const projectName: string = "Acme";\n`,
+    );
     writeFileSync(
       join(root, ".unbroker", "unbroker.ts"),
-      `export default { evaluate: () => ({ version: 1, project: { name: "Acme", env: {}, services: [] } }) };\n`,
+      `import { privateService } from "iac-fixture";
+import { projectName } from "./settings.ts";
+export default { evaluate: () => ({ version: 1, project: { name: projectName, env: {}, services: [privateService("api")] } }) };\n`,
     );
     const planFile = join(root, "plan.json");
     await execFileAsync(
-      process.execPath,
+      cliExecutable!,
       [
-        "--import",
-        tsxImport,
-        join(repoRoot, "src/index.ts"),
+        ...cliArgs,
         "--api-url",
         apiUrl,
         "config",
@@ -142,11 +163,9 @@ test("config plan and apply use immutable plan API contracts", async () => {
     );
     await assert.rejects(
       execFileAsync(
-        process.execPath,
+        cliExecutable!,
         [
-          "--import",
-          tsxImport,
-          join(repoRoot, "src/index.ts"),
+          ...cliArgs,
           "--api-url",
           apiUrl,
           "config",
@@ -163,11 +182,9 @@ test("config plan and apply use immutable plan API contracts", async () => {
         /JSON apply requires --yes/.test(error.message),
     );
     const applied = await execFileAsync(
-      process.execPath,
+      cliExecutable!,
       [
-        "--import",
-        tsxImport,
-        join(repoRoot, "src/index.ts"),
+        ...cliArgs,
         "--api-url",
         apiUrl,
         "config",
@@ -193,6 +210,17 @@ test("config plan and apply use immutable plan API contracts", async () => {
     assert.deepEqual(requests[2]?.body, {
       planId: "plan_test",
       confirmDestructive: false,
+    });
+    assert.deepEqual(requests[1]?.body, {
+      environmentId: "env_test",
+      desiredState: {
+        version: 1,
+        project: {
+          name: "Acme",
+          env: {},
+          services: [{ key: "api", private: true }],
+        },
+      },
     });
   } finally {
     rmSync(root, { recursive: true, force: true });
