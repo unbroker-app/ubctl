@@ -14,6 +14,7 @@ export interface ApiClientOptions {
   fetchFn?: typeof fetch;
   trace?: boolean;
   retries?: number;
+  credentials?: () => Promise<{ token: string; bearer: boolean }>;
 }
 
 /** A non-2xx response from the API (or a transport failure). */
@@ -42,6 +43,7 @@ export class ApiClient {
   private readonly fetchFn: typeof fetch;
   private readonly trace: boolean;
   private readonly retries: number;
+  private readonly credentials: ApiClientOptions["credentials"];
 
   constructor(opts: ApiClientOptions) {
     this.apiUrl = opts.apiUrl.replace(/\/+$/, "");
@@ -50,6 +52,7 @@ export class ApiClient {
     this.fetchFn = opts.fetchFn ?? fetch;
     this.trace = opts.trace ?? false;
     this.retries = opts.retries ?? 0;
+    this.credentials = opts.credentials;
   }
 
   get<T>(path: string): Promise<T> {
@@ -71,7 +74,12 @@ export class ApiClient {
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
     headers["X-UBCTL-Version"] = VERSION;
-    if (this.token) headers["X-API-Key"] = this.token;
+    if (this.credentials) {
+      const auth = await this.credentials();
+      headers[auth.bearer ? "Authorization" : "X-API-Key"] = auth.bearer
+        ? `Bearer ${auth.token}`
+        : auth.token;
+    } else if (this.token) headers["X-API-Key"] = this.token;
     if (this.org) headers["X-Org-Id"] = this.org;
     if (body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -88,6 +96,7 @@ export class ApiClient {
           method,
           headers,
           body: body !== undefined ? JSON.stringify(body) : undefined,
+          redirect: "error",
         });
         // 5xx retries are limited to safe reads: retrying a mutation after the
         // server committed but failed to reply could create duplicate resources.

@@ -1,5 +1,6 @@
 import { DEFAULT_API_URL, ENV } from "./constants";
 import { loadConfig } from "./config/store";
+import type { OAuthCredentials } from "./config/store";
 
 /** Global flags declared on the root program (see program.ts). */
 export interface GlobalOptions {
@@ -13,6 +14,8 @@ export interface GlobalOptions {
 
 /** Everything a command needs to talk to the API, with sources resolved. */
 export interface Context {
+  oauth?: OAuthCredentials;
+  contextName?: string;
   apiUrl: string;
   token: string | undefined;
   org: string | undefined;
@@ -41,6 +44,9 @@ export function resolveContext(opts: GlobalOptions): Context {
   const org = opts.org ?? env[ENV.org] ?? file.org;
 
   return {
+    ...(!env[ENV.token] && file.oauth
+      ? { oauth: file.oauth, contextName: file.currentContext }
+      : {}),
     apiUrl: apiUrl.replace(/\/+$/, ""),
     token: token && token.length > 0 ? token : undefined,
     org: org && org.length > 0 ? org : undefined,

@@ -12,9 +12,16 @@ import { CliError } from "../util/errors";
 import { promptHidden, readStdin } from "../util/prompt";
 import { printJson, printPanel } from "../util/output";
 import { contextName } from "../util/validate";
+import { browserLogin, deviceLogin, oauthBase } from "../auth/oauth";
 
 interface LoginOptions {
+  browser?: boolean;
+  device?: boolean;
+  open?: boolean;
+  scope?: string;
+  mcp?: boolean;
   token?: string;
+  apiToken?: boolean;
   apiUrl?: string;
   org?: string;
   stdin?: boolean;
@@ -23,7 +30,22 @@ interface LoginOptions {
 
 export function loginCommand(): Command {
   return new Command("login")
-    .description("Authenticate with an Unbroker API token and save it locally")
+    .description(
+      "Sign in with a browser, device code, or organization API token",
+    )
+    .option("--browser", "sign in through a local browser callback")
+    .option("--api-token", "use the hidden API-token prompt instead of OAuth")
+    .option("--device", "sign in with a device code (works over SSH)")
+    .option(
+      "--mcp",
+      "authorize a context specifically for the remote MCP resource",
+    )
+    .option("--no-open", "print the sign-in URL without opening a browser")
+    .option(
+      "--scope <scopes>",
+      "OAuth scopes to request",
+      "api:read api:write offline_access",
+    )
     .option("--token <token>", "API token (else prompted, or read from stdin)")
     .option("--api-url <url>", "API base URL to use and persist")
     .option("--org <id>", "default organization to persist")
@@ -47,6 +69,77 @@ export function loginCommand(): Command {
         json: global.json,
       });
 
+      if (
+        (opts.browser || opts.device) &&
+        (opts.token || opts.stdin || opts.apiToken)
+      )
+        throw new CliError(
+          "Choose OAuth or API-token authentication, not both",
+        );
+      if (opts.browser && opts.device)
+        throw new CliError("Choose --browser or --device, not both");
+      if (
+        opts.browser ||
+        opts.device ||
+        (!opts.apiToken &&
+          !opts.token &&
+          !opts.stdin &&
+          process.stdin.isTTY &&
+          process.stdout.isTTY &&
+          !process.env.CI)
+      ) {
+        const apiUrl = oauthBase(ctx.apiUrl);
+        const result = await (opts.device ? deviceLogin : browserLogin)(
+          apiUrl,
+          {
+            scope: opts.scope,
+            open: opts.open,
+            resource: opts.mcp ? `${apiUrl}/mcp` : apiUrl,
+          },
+        );
+        if (explicitOrg && explicitOrg !== result.org)
+          throw new CliError(
+            "The approved organization does not match --org; sign in again and choose the intended organization",
+          );
+        const config = loadConfig();
+        if (!targetContext && config.org && config.org !== result.org)
+          throw new CliError(
+            "This authorization belongs to another organization; use --context <name> to add it safely",
+          );
+        const credentials = {
+          apiUrl,
+          token: result.oauth.accessToken,
+          org: result.org,
+          oauth: result.oauth,
+        };
+        if (targetContext) saveContextCredentials(targetContext, credentials);
+        else saveConfig(credentials);
+        if (ctx.json)
+          printJson({
+            authenticated: true,
+            identity: "oauth",
+            orgId: result.org,
+            apiUrl,
+            configPath: configPath(),
+            context: targetContext ?? config.currentContext,
+          });
+        else
+          printPanel(
+            "UNBROKER CLOUD",
+            "✓ Authenticated",
+            [
+              { label: "Identity", value: "OAuth connection" },
+              { label: "Org", value: result.org },
+              { label: "API", value: apiUrl },
+            ],
+            [
+              "Next: ubctl whoami",
+              "Credentials are stored in your owner-only ubctl configuration file.",
+            ],
+          );
+        return;
+      }
+
       const token = await obtainToken(opts);
       if (!token) throw new CliError("no token provided");
 
@@ -67,6 +160,7 @@ export function loginCommand(): Command {
         apiUrl: ctx.apiUrl,
         token,
         org: orgId,
+        oauth: undefined,
       };
       if (targetContext) {
         saveContextCredentials(targetContext, credentials);

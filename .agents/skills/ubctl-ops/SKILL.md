@@ -65,7 +65,10 @@ This skill requires the `ubctl` executable and network access to an Unbroker API
 
 ## Authentication and CI
 
-- Interactive setup: `ubctl login`, then `ubctl whoami`.
+- Human setup: `ubctl login --browser` or `ubctl login --device`, then
+  `ubctl whoami`. Do not start an interactive authorization while operating as an
+  unattended agent; ask the person to complete it. Token-only servers can use
+  `ubctl login --api-token` for the hidden prompt.
 - Non-interactive login: pipe a token to `ubctl login --stdin`; avoid
   `login --token` in automation because arguments may enter shell history or
   process listings.
@@ -73,8 +76,10 @@ This skill requires the `ubctl` executable and network access to an Unbroker API
   token can access multiple organizations.
 - For multiple accounts, use named contexts with `ubctl login --context <name>`,
   `ubctl auth ls`, and `ubctl auth switch <name>`, then verify with `whoami`.
-- Never expose `~/.config/ubctl/config.json`; it contains credentials and should
-  remain owner-readable only.
+- Never expose `~/.config/ubctl/config.json` or `~/.config/ubctl/oauth/`; they
+  contain credentials and must remain owner-readable only. OAuth contexts bind
+  to one organization and resource. An MCP adapter context created with
+  `login --device --mcp` is not a REST context; use separate named contexts.
 
 ## Choose the command family
 
