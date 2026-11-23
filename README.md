@@ -69,7 +69,24 @@ ubctl --help
 
 ## Authenticate
 
-Every command (except `login`/`logout`) talks to the API with an **API token**.
+Interactive login uses OAuth by default; organization API tokens remain supported
+for CI, older servers and explicit token-based login. OAuth requires the companion
+API's delegated-access rollout.
+
+```bash
+ubctl login --browser --context work
+ubctl login --device --context remote   # approve a URL/code on another device
+ubctl whoami
+```
+
+Browser login uses PKCE and a loopback callback; device login needs no incoming
+connection. Both ask you to select and authorize one organization. Existing login
+and MFA requirements apply. Use `--no-open` to open the URL yourself. For read-only
+access, pass `--scope "api:read offline_access"`. OAuth access expires and refreshes
+automatically. Membership, role, subscription and revocation checks remain
+server-side; an `--org` override cannot move a grant to another organization.
+
+For **API-token authentication**:
 
 1. Create a token. If you already have one (from the web dashboard → _API
    tokens_), skip to step 2. Otherwise, once you're logged in you can mint more:
@@ -82,7 +99,7 @@ Every command (except `login`/`logout`) talks to the API with an **API token**.
 2. Log in. This validates the token against the API and stores it locally:
 
    ```bash
-   ubctl login                          # prompts for the token (input hidden)
+    ubctl login --api-token              # prompts for the token (input hidden)
    # non-interactive alternatives:
    ubctl login --token ub_xxx           # pass it directly
    echo "$UB_TOKEN" | ubctl login --stdin   # pipe it (best for CI)
@@ -128,10 +145,9 @@ ubctl auth ls
 ubctl auth switch personal
 ```
 
-Each context stores its own API URL, organization, and token in the same
-owner-only config file. Always use `login --context <name>` when adding another
-account. A plain `login` reauthenticates the selected context and refuses a
-token from a different organization, preventing accidental account replacement.
+Each context stores its own API URL, organization and authentication. Always use
+`login --context <name>` when adding another account. A plain `login` refuses to
+replace the selected context with an authorization from another organization.
 
 Confirm the selected account after every switch:
 
@@ -146,11 +162,20 @@ Environment variables have higher precedence than contexts. If `UBCTL_TOKEN`,
 process. `ubctl doctor` shows the effective configuration without printing the
 token.
 
-The token (plus API URL and active org) is written to
-`~/.config/ubctl/config.json` with `0600` permissions. To sign out:
+Credentials are stored in `~/.config/ubctl/config.json` and, for OAuth, the
+canonical per-grant journal under `~/.config/ubctl/oauth/`. Files use `0600` and
+directories use `0700`; they contain secrets and must not be shared. Refresh is
+serialized across processes and the journal prevents concurrent context writes
+from rolling credentials back. Locks record the owner PID. If that process dies,
+the CLI removes the abandoned lock and asks you to sign in again rather than
+replaying a refresh token that might already have rotated. A live or unverifiable
+owner's lock is not stolen; timeout diagnostics include its path. No OS keychain
+integration is implied by file permissions.
+
+To sign out:
 
 ```bash
-ubctl logout                            # removes the token, keeps api-url & org
+ubctl logout                            # revokes OAuth when online; removes local credentials
 ```
 
 **Token scopes:** `read` (read-only) or `read/write` (full control, the default).
@@ -162,6 +187,38 @@ A `read` token can list and inspect everything but can't create, change or delet
 export UBCTL_TOKEN=ub_xxx
 ubctl apps deploy <serviceId> --wait
 ```
+
+### Local MCP adapter
+
+Create a separate OAuth context for the MCP resource, then configure your local
+MCP client to launch the adapter:
+
+```bash
+ubctl login --device --mcp --context assistant
+ubctl mcp serve --context assistant
+```
+
+```json
+{
+  "mcpServers": {
+    "unbroker": {
+      "command": "ubctl",
+      "args": ["mcp", "serve", "--context", "assistant"]
+    }
+  }
+}
+```
+
+Enable MCP for that organization in Cloud Settings → Integrations. Stdout carries
+only MCP protocol messages; diagnostics go to stderr. The adapter pins its context
+and does not follow global context switches. REST and MCP OAuth audiences are
+separate: do not use this context for ordinary REST commands. An organization API
+token context can also be used with the adapter without `--mcp` login.
+
+`logout` attempts remote revocation. If offline, it warns and removes local
+credentials; revoke the connection in Cloud's Integrations page when available.
+API-token creation, plaintext credential reveals and other human-session/MFA
+actions do not become available merely because you used OAuth.
 
 ---
 

@@ -20,6 +20,7 @@ import { cloudCommands } from "./commands/cloud";
 import { analyticsCommand } from "./commands/analytics";
 import { tuiCommand } from "./commands/tui";
 import { configCommand } from "./commands/config";
+import { mcpCommand } from "./commands/mcp";
 
 /**
  * Build the root `ubctl` command tree. Kept separate from the entrypoint so
@@ -49,6 +50,7 @@ export function buildProgram(): Command {
 
   // Auth & identity
   program.addCommand(loginCommand());
+  program.addCommand(mcpCommand());
   program.addCommand(authCommand());
   program.addCommand(logoutCommand());
   program.addCommand(whoamiCommand());
