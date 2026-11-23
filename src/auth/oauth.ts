@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { open, unlink } from "node:fs/promises";
+import { open, readFile, unlink } from "node:fs/promises";
 import {
   configPath,
   loadConfig,
@@ -342,6 +342,37 @@ export async function deviceLogin(
 }
 
 const refreshing = new Map<string, Promise<string>>();
+
+async function refreshOwnerExited(path: string): Promise<boolean> {
+  try {
+    const owner: unknown = JSON.parse(await readFile(path, "utf8"));
+    if (
+      !owner ||
+      typeof owner !== "object" ||
+      !("pid" in owner) ||
+      !Number.isSafeInteger(owner.pid) ||
+      Number(owner.pid) <= 0
+    )
+      return false;
+    try {
+      process.kill(Number(owner.pid), 0);
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "ESRCH";
+    }
+  } catch {
+    /* An incompletely written/legacy lock is never safe to steal. */
+  }
+  return false;
+}
+
+async function removeRefreshLock(path: string) {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
 /** Refresh is serialized across processes because refresh credentials rotate. */
 export function oauthToken(
   apiUrl: string,
@@ -370,21 +401,47 @@ export function oauthToken(
     const initial = current();
     if (initial.oauth.expiresAt > Date.now() + 60_000)
       return initial.oauth.accessToken;
+    if (!initial.oauth.refreshToken)
+      throw new CliError(
+        "Sign-in expired or refresh was interrupted; run ubctl login again",
+      );
     // A killed refresher cannot block a newly authorized grant or another org.
     const lockPath = `${configPath()}.${expected.grantId}.oauth-lock`;
     let lock;
     for (let attempt = 0; attempt < 200; attempt++) {
       try {
         lock = await open(lockPath, "wx", 0o600);
+        try {
+          await lock.writeFile(JSON.stringify({ pid: process.pid }));
+        } catch (error) {
+          await lock.close();
+          await removeRefreshLock(lockPath);
+          throw error;
+        }
         break;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        if (await refreshOwnerExited(lockPath)) {
+          // The dead process may have consumed the rotating refresh credential
+          // before saving its replacement. Persist a terminal local state before
+          // removing the abandoned lock; never replay that uncertain credential.
+          const interrupted = current().oauth;
+          saveOAuthCredentials(context, {
+            ...interrupted,
+            refreshToken: undefined,
+            expiresAt: 0,
+          });
+          await removeRefreshLock(lockPath);
+          throw new CliError(
+            "A previous OAuth refresh was interrupted; run ubctl login again. The abandoned lock was removed safely.",
+          );
+        }
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
     if (!lock)
       throw new CliError(
-        "Another login is refreshing credentials, or a previous process left an OAuth lock; retry after checking the lock file",
+        `OAuth refresh is locked at ${lockPath}; another process may still be refreshing. Retry later or run ubctl login again; do not delete an active lock.`,
       );
     try {
       const { oauth, org } = current();
@@ -407,11 +464,12 @@ export function oauthToken(
           "The refreshed authorization changed organization or grant",
         );
       const next = credentials(tokens, oauth.resource);
+      next.refreshToken ??= oauth.refreshToken;
       saveOAuthCredentials(context, next);
       return next.accessToken;
     } finally {
       await lock.close();
-      await unlink(lockPath);
+      await removeRefreshLock(lockPath);
     }
   };
   const promise = run().finally(() => refreshing.delete(key));

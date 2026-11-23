@@ -1,11 +1,14 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { browserLogin, deviceLogin, oauthBase, oauthToken } from "./oauth";
 import {
   loadConfig,
+  configPath,
   loadOAuthCredentials,
   saveConfig,
   saveContextCredentials,
@@ -193,6 +196,93 @@ test("API client sends OAuth only as a bearer and refuses redirects", async () =
   assert.equal(headers!.get("authorization"), "Bearer ub_at_test");
   assert.equal(headers!.get("x-api-key"), null);
 });
+
+test("refresh retains a still-valid refresh token when the server omits its replacement", async () => {
+  isolated();
+  const oauth = {
+    grantId: "grant-test",
+    accessToken: "ub_at_old",
+    refreshToken: "ub_rt_old",
+    expiresAt: 1,
+    resource: "https://api.example.com",
+    scope: "api:read offline_access",
+  };
+  saveContextCredentials("work", {
+    apiUrl: oauth.resource,
+    org: "org-test",
+    token: oauth.accessToken,
+    oauth,
+  });
+  const result = { ...tokens("new"), refresh_token: undefined };
+  assert.equal(
+    await oauthToken(oauth.resource, "work", oauth, (async () =>
+      Response.json(result)) as typeof fetch),
+    "ub_at_new",
+  );
+  assert.equal(loadOAuthCredentials(oauth).refreshToken, "ub_rt_old");
+});
+
+test(
+  "a killed refresh owner releases its lock without replaying an uncertain rotating token",
+  { timeout: 10_000 },
+  async () => {
+    isolated();
+    const oauth = {
+      grantId: "grant-test",
+      accessToken: "ub_at_old",
+      refreshToken: "ub_rt_old",
+      expiresAt: 1,
+      resource: "https://api.example.com",
+      scope: "api:read offline_access",
+    };
+    saveContextCredentials("work", {
+      apiUrl: oauth.resource,
+      org: "org-test",
+      token: oauth.accessToken,
+      oauth,
+    });
+    const path = `${configPath()}.${oauth.grantId}.oauth-lock`;
+    const owner = spawn(
+      process.execPath,
+      [
+        "-e",
+        `require("node:fs").writeFileSync(process.argv[1], JSON.stringify({pid:process.pid}), {mode:0o600,flag:"wx"}); process.stdout.write("locked"); setInterval(()=>{},1000);`,
+        path,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const exited = once(owner, "exit");
+    try {
+      await Promise.race([
+        once(owner.stdout, "data"),
+        exited.then(() => {
+          throw new Error("Lock owner exited before readiness");
+        }),
+      ]);
+      owner.kill("SIGKILL");
+      await exited;
+      let requests = 0;
+      const fetchFn = (async () => {
+        requests++;
+        return Response.json(tokens("new"));
+      }) as typeof fetch;
+      await assert.rejects(
+        oauthToken(oauth.resource, "work", oauth, fetchFn),
+        /refresh was interrupted; run ubctl login again/,
+      );
+      assert.equal(existsSync(path), false);
+      assert.equal(loadOAuthCredentials(oauth).refreshToken, undefined);
+      await assert.rejects(
+        oauthToken(oauth.resource, "work", oauth, fetchFn),
+        /run ubctl login again/,
+      );
+      assert.equal(requests, 0);
+    } finally {
+      owner.kill("SIGKILL");
+      await exited;
+    }
+  },
+);
 
 test("device sign-in rejects malformed payloads and unsafe verification URLs without echoing secrets", async () => {
   const valid = {

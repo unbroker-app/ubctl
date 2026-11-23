@@ -166,9 +166,11 @@ Credentials are stored in `~/.config/ubctl/config.json` and, for OAuth, the
 canonical per-grant journal under `~/.config/ubctl/oauth/`. Files use `0600` and
 directories use `0700`; they contain secrets and must not be shared. Refresh is
 serialized across processes and the journal prevents concurrent context writes
-from rolling credentials back. A killed refresher may leave a grant-specific
-lock: sign in again to create a fresh grant, or inspect the lock before removing
-it. No OS keychain integration is implied by file permissions.
+from rolling credentials back. Locks record the owner PID. If that process dies,
+the CLI removes the abandoned lock and asks you to sign in again rather than
+replaying a refresh token that might already have rotated. A live or unverifiable
+owner's lock is not stolen; timeout diagnostics include its path. No OS keychain
+integration is implied by file permissions.
 
 To sign out:
 
